@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seydişehir İtfaiye - Yandex Hidrant Takip</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Yandex Maps API -->
+    <script src="https://api-maps.yandex.ru/2.1/?lang=tr_TR" type="text/javascript"></script>
+
+    <<style>
+    body { background-color: #f4f7f6; font-family: sans-serif; }
+    .navbar { background-color: #b91c1c; margin-bottom: 15px; }
+    
+    /* HARİTA BOYUTU BURADAN AYARLANIR */
+    #map { 
+        height: 350px;           /* Yüksekliği 450'den 350'ye düşürdük */
+        width: 100%; 
+        max-width: 900px;       /* Haritanın çok genişlemesini engeller */
+        margin: 0 auto 20px auto; /* Haritayı ortalar ve altına boşluk bırakır */
+        border-radius: 12px; 
+        border: 3px solid #dee2e6; 
+        cursor: crosshair; 
+        display: block;
+    }
+
+    .card { border-radius: 12px; border: none; max-width: 900px; margin: 0 auto 20px auto; }
+    .btn-save { background-color: #b91c1c; color: white; border: none; }
+    .btn-yandex { background-color: #ffcc00; color: #000; border: none; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark shadow">
+    <div class="container">
+        <span class="navbar-brand mb-0 h1">🚒 Seydişehir İtfaiye Sistemi</span>
+    </div>
+</nav>
+
+<div class="container pb-5">
+    <div class="alert alert-warning py-2 shadow-sm text-center">
+        📍 <b>Manuel Seçim:</b> Haritadaki sokağa tıklayarak hidrant yerini belirleyebilirsiniz.
+    </div>
+
+    <!-- HARİTA -->
+    <div id="map" class="shadow-sm mb-4"></div>
+
+    <!-- KAYIT FORMU -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title text-danger mb-3">Hidrant Bilgileri</h5>
+            <form id="hidrantForm" class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Açık Adres</label>
+                    <input type="text" id="newAdres" class="form-control shadow-sm" placeholder="Örn: Stat Cad. No:5" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Durum</label>
+                    <select id="newDurum" class="form-select shadow-sm">
+                        <option value="aktif">✅ Sağlam</option>
+                        <option value="arizali">❌ Arızalı</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Enlem</label>
+                    <input type="text" id="newLat" class="form-control bg-light fw-bold" readonly required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Boylam</label>
+                    <input type="text" id="newLng" class="form-control bg-light fw-bold" readonly required>
+                </div>
+                <div class="col-12 mt-4 text-center">
+                    <button type="submit" class="btn btn-save btn-lg px-5 shadow">Sisteme Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LİSTE -->
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Adres ve Koordinat</th>
+                        <th>Durum</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="hidrantTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    var myMap;
+    var tempMarker;
+    let hidrantlar = JSON.parse(localStorage.getItem('itfaiyeVerileri')) || [];
+
+    ymaps.ready(function () {
+        myMap = new ymaps.Map("map", {
+            center: [37.4182, 31.8465], // Seydişehir
+            zoom: 15,
+            controls: ['zoomControl', 'typeSelector']
+        });
+
+        // Tıklama ile konum belirleme
+        myMap.events.add('click', function (e) {
+            var coords = e.get('coords');
+            document.getElementById('newLat').value = coords[0].toFixed(6);
+            document.getElementById('newLng').value = coords[1].toFixed(6);
+
+            if (tempMarker) {
+                tempMarker.geometry.setCoordinates(coords);
+            } else {
+                tempMarker = new ymaps.Placemark(coords, { iconCaption: 'Seçilen Yer' }, { preset: 'islands#yellowDotIconWithCaption' });
+                myMap.geoObjects.add(tempMarker);
+            }
+        });
+
+        arayuzuGuncelle();
+    });
+
+    function arayuzuGuncelle() {
+        const tableBody = document.getElementById('hidrantTableBody');
+        tableBody.innerHTML = "";
+        
+        if (myMap) {
+            myMap.geoObjects.removeAll();
+            if (tempMarker) myMap.geoObjects.add(tempMarker);
+        }
+
+        hidrantlar.forEach((h, index) => {
+            // Yandex Navigasyon Linki Oluşturma
+            // Format: yandex.com/maps/?pt=BOYLAM,ENLEM&z=18&l=map
+            let yandexNaviLink = `https://yandex.com/maps/?pt=${h.lng},${h.lat}&z=18&l=map`;
+
+            let row = `<tr>
+                <td><b>${h.adres}</b><br><small class="text-muted">${h.lat}, ${h.lng}</small></td>
+                <td><span class="badge ${h.durum === 'aktif' ? 'bg-success' : 'bg-danger'}">${h.durum.toUpperCase()}</span></td>
+                <td>
+                    <button onclick="kayitSil(${index})" class="btn btn-sm btn-outline-danger me-1">Sil</button>
+                    <a href="${yandexNaviLink}" target="_blank" class="btn btn-sm btn-yandex shadow-sm">Yandex Navi</a>
+                </td>
+            </tr>`;
+            tableBody.innerHTML += row;
+
+            let ikon = h.durum === 'aktif' ? 'islands#blueWaterDropIcon' : 'islands#redWaterDropIcon';
+            myMap.geoObjects.add(new ymaps.Placemark([h.lat, h.lng], { balloonContent: h.adres }, { preset: ikon }));
+        });
+    }
+
+    document.getElementById('hidrantForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const yeni = {
+            adres: document.getElementById('newAdres').value,
+            durum: document.getElementById('newDurum').value,
+            lat: document.getElementById('newLat').value,
+            lng: document.getElementById('newLng').value
+        };
+        hidrantlar.push(yeni);
+        localStorage.setItem('itfaiyeVerileri', JSON.stringify(hidrantlar));
+        this.reset();
+        if (tempMarker) { myMap.geoObjects.remove(tempMarker); tempMarker = null; }
+        arayuzuGuncelle();
+        alert("Başarıyla kaydedildi.");
+    });
+
+    function kayitSil(index) {
+        if(confirm("Silmek istediğinize emin misiniz?")) {
+            hidrantlar.splice(index, 1);
+            localStorage.setItem('itfaiyeVerileri', JSON.stringify(hidrantlar));
+            arayuzuGuncelle();
+        }
+    }
+</script>
+</body>
+</html>
