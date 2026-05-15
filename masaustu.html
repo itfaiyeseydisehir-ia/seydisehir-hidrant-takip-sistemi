@@ -93,9 +93,35 @@
                 const liste = document.getElementById('liste');
                 liste.innerHTML = "";
                 myMap.geoObjects.removeAll();
+                
                 snapshot.forEach(doc => {
                     const h = doc.data();
-                    liste.innerHTML += `<div class="h-item"><b>${h.ad}</b><br><small>${h.tip}</small> <button class="btn btn-sm text-danger p-0 float-end" onclick="sil('${doc.id}')">Sil</button></div>`;
+                    
+                    // Liste öğesini oluşturuyoruz
+                    liste.innerHTML += `
+                        <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong class="d-block text-dark">${h.ad.toUpperCase()}</strong>
+                                    <small class="text-muted">${h.tip} - <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st}</span></small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger border-0" onclick="sil('${doc.id}')">🗑️</button>
+                            </div>
+                            
+                            <div class="row g-1 mt-2">
+                                <div class="col-6">
+                                    <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn btn-warning btn-sm w-100 fw-bold" style="font-size:10px;">YANDEX</a>
+                                </div>
+                                <div class="col-6">
+                                    <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold text-white" style="font-size:10px;">APPLE</a>
+                                </div>
+                            </div>
+                            <div class="text-center mt-2">
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="text-muted small" style="text-decoration:none; font-size:11px;">🌐 Google Haritalar'da Aç</a>
+                            </div>
+                        </div>`;
+                    
+                    // Haritadaki ikonları ekleme kısmı
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
                     myMap.geoObjects.add(new ymaps.Placemark([h.lat, h.lng], {balloonContent: h.ad}, {preset: icon}));
                 });
