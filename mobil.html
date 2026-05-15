@@ -74,14 +74,25 @@
                 snapshot.forEach(doc => {
                     const h = doc.data();
                     icerik.innerHTML += `
-                        <div class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
-                            <div class="d-flex justify-content-between">
-                                <strong>${h.ad.toUpperCase()}</strong>
-                                <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st}</span>
-                            </div>
-                            <div class="small text-muted">Tip: ${h.tip}</div>
-                            <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn-navi">YANDEX NAVİGASYON</a>
-                        </div>`;
+    <div class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
+        <div class="d-flex justify-content-between align-items-center">
+            <strong style="font-size:1.1rem;">${h.ad.toUpperCase()}</strong>
+            <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span>
+        </div>
+        <div class="mt-1 text-secondary">Tip: ${h.tip}</div>
+        
+        <div class="row g-2 mt-2">
+            <div class="col-6">
+                <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn-navi" style="background:#ffc107; color:black; display:block; text-align:center; padding:10px; border-radius:8px; text-decoration:none; font-weight:bold;">YANDEX</a>
+            </div>
+            <div class="col-6">
+                <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn-navi" style="background:#007aff; color:white; display:block; text-align:center; padding:10px; border-radius:8px; text-decoration:none; font-weight:bold;">APPLE (iOS)</a>
+            </div>
+        </div>
+        <div class="mt-2 text-center">
+             <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="text-decoration-none small text-muted">Google Haritalar ile Aç</a>
+        </div>
+    </div>`;
                     
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
                     let placemark = new ymaps.Placemark([h.lat, h.lng], {
