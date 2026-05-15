@@ -103,7 +103,20 @@
         }
 
         async function sil(id) {
-            if(confirm("Silmek istediğinize emin misiniz?")) await db.collection("hidrantlar").doc(id).delete();
+            // Personelden şifre iste
+            const sifre = prompt("Bu kaydı silmek için yetkili şifresini giriniz:");
+
+            // "KENDI_SIFREN" yazan yeri silip kendi şifreni yaz (tırnaklar kalsın)
+            if (sifre === "662__7723") { 
+                if(confirm("Silmek istediğinize emin misiniz?")) {
+                    await db.collection("hidrantlar").doc(id).delete();
+                    alert("Kayıt başarıyla silindi.");
+                }
+            } else if (sifre === null) {
+                // İptal tuşuna basıldıysa bir şey yapma
+            } else {
+                alert("Hatalı şifre! Silme yetkiniz bulunmamaktadır.");
+            }
         }
     </script>
 </body>
