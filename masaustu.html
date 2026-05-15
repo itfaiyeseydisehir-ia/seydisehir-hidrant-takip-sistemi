@@ -7,16 +7,15 @@
     <script src="https://api-maps.yandex.ru/2.1/?lang=tr_TR" type="text/javascript"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
     <style>
-        body { background: #f8fafc; font-family: sans-serif; }
-        #map { height: 600px; width: 100%; border-radius: 12px; border: 4px solid #b91c1c; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        body { background: #f8fafc; }
+        #map { height: 600px; width: 100%; border-radius: 12px; border: 4px solid #b91c1c; }
         .sidebar { background: white; padding: 20px; border-radius: 12px; height: 600px; overflow-y: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .h-item { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.9rem; }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-danger mb-4 shadow"><div class="container-fluid"><span class="navbar-brand fw-bold">🚩 SEYDİŞEHİR İTFAİYE HİDRANT SİSTEMİ v2.0</span></div></nav>
+    <nav class="navbar navbar-dark bg-danger mb-4 shadow"><div class="container-fluid"><span class="navbar-brand fw-bold">🚩 SEYDİŞEHİR İTFAİYE HİDRANT TAKİP</span></div></nav>
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-3">
@@ -31,8 +30,6 @@
                         <option value="aktif">🟢 Aktif</option>
                         <option value="arizali">🔴 Arızalı</option>
                     </select>
-                    <label class="small fw-bold">Fotoğraf Yükle:</label>
-                    <input type="file" id="h-foto" class="form-control mb-2" accept="image/*">
                     <div class="row g-2 mb-3">
                         <div class="col"><input type="text" id="h-lat" class="form-control form-control-sm" placeholder="Lat" readonly></div>
                         <div class="col"><input type="text" id="h-lng" class="form-control form-control-sm" placeholder="Lng" readonly></div>
@@ -47,7 +44,6 @@
     </div>
 
     <script>
-        // Senin Firebase Bilgilerin
         const firebaseConfig = {
             apiKey: "AIzaSyBW7ZKG_Tl_RQNBYqObQLNWaikklaZver4",
             authDomain: "seydisehir-hidrant-takip.firebaseapp.com",
@@ -58,7 +54,6 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        const storage = firebase.storage();
 
         var myMap;
         ymaps.ready(() => {
@@ -77,20 +72,12 @@
             const st = document.getElementById('h-durum').value;
             const lat = document.getElementById('h-lat').value;
             const lng = document.getElementById('h-lng').value;
-            const file = document.getElementById('h-foto').files[0];
 
             if(!ad || !lat) return alert("Lütfen isim ve konum seçin!");
 
-            let fotoUrl = "";
-            if(file) {
-                const ref = storage.ref('hidrantlar/' + Date.now() + "_" + ad);
-                await ref.put(file);
-                fotoUrl = await ref.getDownloadURL();
-            }
-
-            await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, foto: fotoUrl, tarih: Date.now() });
-            alert("Veri Buluta İşlendi!");
-            location.reload();
+            await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, tarih: Date.now() });
+            alert("Hidrant Buluta Kaydedildi!");
+            document.getElementById('h-ad').value = "";
         }
 
         function verileriGetir() {
