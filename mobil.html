@@ -38,19 +38,28 @@
 
         var myMap;
         ymaps.ready(() => {
-            myMap = new ymaps.Map("map", { 
-                center: [37.4182, 31.8465], 
-                zoom: 15, 
-                controls: ['zoomControl', 'geolocationControl'] 
-            });
+    myMap = new ymaps.Map("map", { 
+        center: [37.4182, 31.8465], 
+        zoom: 15, 
+        controls: ['zoomControl'] // 'geolocationControl'u buradan sildik
+    });
 
-            // PERSONELİN KENDİ KONUMUNU GÖSTERME (Mavi Hareketli Nokta)
-            myMap.controls.get('geolocationControl').events.add('locationchange', function (e) {
-                myMap.setCenter(e.get('position'), 16);
+    // Kendi Konum Butonumuzu Kendimiz Yapalım (Ücretsiz ve Anahtarsız)
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const myCoords = [pos.coords.latitude, pos.coords.longitude];
+            myMap.setCenter(myCoords, 17);
+            
+            // Personelin olduğu yere mavi bir halka koy
+            const userMarker = new ymaps.Placemark(myCoords, {}, {
+                preset: 'islands#geolocationIcon'
             });
-
-            verileriGetir();
+            myMap.geoObjects.add(userMarker);
         });
+    }
+
+    verileriGetir();
+});
 
         function verileriGetir() {
             db.collection("hidrantlar").orderBy("tarih", "desc").onSnapshot(snapshot => {
