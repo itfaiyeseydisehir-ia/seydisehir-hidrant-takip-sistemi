@@ -2,72 +2,114 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>İtfaiye Masaüstü Paneli</title>
+    <title>Seydişehir İtfaiye - Yönetim Paneli</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://api-maps.yandex.ru/2.1/?lang=tr_TR" type="text/javascript"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
     <style>
-        #map { height: 450px; width: 100%; border-radius: 15px; border: 3px solid #dee2e6; }
-        .table-area { background: white; border-radius: 15px; padding: 20px; margin-top: 20px; }
+        body { background: #f8fafc; font-family: sans-serif; }
+        #map { height: 600px; width: 100%; border-radius: 12px; border: 4px solid #b91c1c; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .sidebar { background: white; padding: 20px; border-radius: 12px; height: 600px; overflow-y: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .h-item { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.9rem; }
     </style>
 </head>
-<body class="bg-light">
-    <nav class="navbar navbar-dark bg-danger shadow-sm mb-4">
-        <div class="container"><span class="navbar-brand">🚒 Seydişehir İtfaiye - Masaüstü Takip</span></div>
-    </nav>
-    <div class="container">
-        <div id="map" class="shadow-sm mb-4"></div>
-        <div class="card p-4 border-0 shadow-sm">
-            <form id="h-form" class="row g-3">
-                <div class="col-md-5"><input type="text" id="h-adres" class="form-control" placeholder="Hidrant Mevki / Adres" required></div>
-                <div class="col-md-3">
-                    <select id="h-durum" class="form-select">
-                        <option value="aktif">✅ Aktif / Sağlam</option>
-                        <option value="arizali">❌ Arızalı / Bakımda</option>
+<body>
+    <nav class="navbar navbar-dark bg-danger mb-4 shadow"><div class="container-fluid"><span class="navbar-brand fw-bold">🚩 SEYDİŞEHİR İTFAİYE HİDRANT SİSTEMİ v2.0</span></div></nav>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="sidebar">
+                    <h5 class="text-danger fw-bold mb-3">Yeni Hidrant Ekle</h5>
+                    <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki Adı">
+                    <select id="h-tip" class="form-select mb-2">
+                        <option value="Yer Üstü">🟥 Yer Üstü Hidrant</option>
+                        <option value="Yer Altı">🟦 Yer Altı Hidrant</option>
                     </select>
+                    <select id="h-durum" class="form-select mb-2">
+                        <option value="aktif">🟢 Aktif</option>
+                        <option value="arizali">🔴 Arızalı</option>
+                    </select>
+                    <label class="small fw-bold">Fotoğraf Yükle:</label>
+                    <input type="file" id="h-foto" class="form-control mb-2" accept="image/*">
+                    <div class="row g-2 mb-3">
+                        <div class="col"><input type="text" id="h-lat" class="form-control form-control-sm" placeholder="Lat" readonly></div>
+                        <div class="col"><input type="text" id="h-lng" class="form-control form-control-sm" placeholder="Lng" readonly></div>
+                    </div>
+                    <button class="btn btn-danger w-100 fw-bold" onclick="kaydet()">BULUTA KAYDET</button>
+                    <hr>
+                    <div id="liste"></div>
                 </div>
-                <div class="col-md-2"><input type="text" id="h-lat" class="form-control bg-light" placeholder="Enlem" readonly></div>
-                <div class="col-md-2"><input type="text" id="h-lng" class="form-control bg-light" placeholder="Boylam" readonly></div>
-                <div class="col-12 text-center"><button type="submit" class="btn btn-danger px-5 fw-bold">HİDRANTI SİSTEME KAYDET</button></div>
-            </form>
-        </div>
-        <div class="table-area shadow-sm">
-            <table class="table table-hover text-center">
-                <thead class="table-dark"><tr><th>Mevki</th><th>Koordinat</th><th>Durum</th><th>İşlem</th></tr></thead>
-                <tbody id="h-liste"></tbody>
-            </table>
+            </div>
+            <div class="col-md-9"><div id="map"></div></div>
         </div>
     </div>
+
     <script>
-        var myMap, marker;
-        let hidrantlar = JSON.parse(localStorage.getItem('itfaiye_db')) || [];
+        // Senin Firebase Bilgilerin
+        const firebaseConfig = {
+            apiKey: "AIzaSyBW7ZKG_Tl_RQNBYqObQLNWaikklaZver4",
+            authDomain: "seydisehir-hidrant-takip.firebaseapp.com",
+            projectId: "seydisehir-hidrant-takip",
+            storageBucket: "seydisehir-hidrant-takip.firebasestorage.app",
+            messagingSenderId: "796886633761",
+            appId: "1:796886633761:web:bff9d85151021c2ff84260"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        var myMap;
         ymaps.ready(() => {
-            myMap = new ymaps.Map("map", { center: [37.4182, 31.8465], zoom: 14 });
+            myMap = new ymaps.Map("map", { center: [37.4182, 31.8465], zoom: 14, controls: ['zoomControl'] });
             myMap.events.add('click', e => {
-                let c = e.get('coords');
-                document.getElementById('h-lat').value = c[0].toFixed(6);
-                document.getElementById('h-lng').value = c[1].toFixed(6);
-                if (marker) marker.geometry.setCoordinates(c);
-                else { marker = new ymaps.Placemark(c); myMap.geoObjects.add(marker); }
+                const coords = e.get('coords');
+                document.getElementById('h-lat').value = coords[0].toFixed(6);
+                document.getElementById('h-lng').value = coords[1].toFixed(6);
             });
-            listele();
+            verileriGetir();
         });
-        function listele() {
-            const tbody = document.getElementById('h-liste'); tbody.innerHTML = "";
-            myMap.geoObjects.removeAll(); if(marker) myMap.geoObjects.add(marker);
-            hidrantlar.forEach((h, i) => {
-                tbody.innerHTML += `<tr><td>${h.ad}</td><td>${h.lat}, ${h.lng}</td>
-                <td><span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span></td>
-                <td><button onclick="sil(${i})" class="btn btn-sm btn-outline-danger">Sil</button></td></tr>`;
-                myMap.geoObjects.add(new ymaps.Placemark([h.lat, h.lng], {balloonContent: h.ad}, {preset: h.st=='aktif'?'islands#blueWaterDropIcon':'islands#redWaterDropIcon'}));
+
+        async function kaydet() {
+            const ad = document.getElementById('h-ad').value;
+            const tip = document.getElementById('h-tip').value;
+            const st = document.getElementById('h-durum').value;
+            const lat = document.getElementById('h-lat').value;
+            const lng = document.getElementById('h-lng').value;
+            const file = document.getElementById('h-foto').files[0];
+
+            if(!ad || !lat) return alert("Lütfen isim ve konum seçin!");
+
+            let fotoUrl = "";
+            if(file) {
+                const ref = storage.ref('hidrantlar/' + Date.now() + "_" + ad);
+                await ref.put(file);
+                fotoUrl = await ref.getDownloadURL();
+            }
+
+            await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, foto: fotoUrl, tarih: Date.now() });
+            alert("Veri Buluta İşlendi!");
+            location.reload();
+        }
+
+        function verileriGetir() {
+            db.collection("hidrantlar").orderBy("tarih", "desc").onSnapshot(snapshot => {
+                const liste = document.getElementById('liste');
+                liste.innerHTML = "";
+                myMap.geoObjects.removeAll();
+                snapshot.forEach(doc => {
+                    const h = doc.data();
+                    liste.innerHTML += `<div class="h-item"><b>${h.ad}</b><br><small>${h.tip}</small> <button class="btn btn-sm text-danger p-0 float-end" onclick="sil('${doc.id}')">Sil</button></div>`;
+                    let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
+                    myMap.geoObjects.add(new ymaps.Placemark([h.lat, h.lng], {balloonContent: h.ad}, {preset: icon}));
+                });
             });
         }
-        document.getElementById('h-form').onsubmit = e => {
-            e.preventDefault();
-            hidrantlar.push({ad: document.getElementById('h-adres').value, st: document.getElementById('h-durum').value, lat: document.getElementById('h-lat').value, lng: document.getElementById('h-lng').value});
-            localStorage.setItem('itfaiye_db', JSON.stringify(hidrantlar));
-            listele(); e.target.reset();
-        };
-        function sil(i) { if(confirm("Silinsin mi?")) { hidrantlar.splice(i,1); localStorage.setItem('itfaiye_db', JSON.stringify(hidrantlar)); listele(); } }
+
+        async function sil(id) {
+            if(confirm("Silmek istediğinize emin misiniz?")) await db.collection("hidrantlar").doc(id).delete();
+        }
     </script>
 </body>
 </html>
