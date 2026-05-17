@@ -2,13 +2,10 @@
 <html lang="tr">
 <head>
     <link rel="icon" type="image/jpeg" href="logo.jpg">
-
-<link rel="apple-touch-icon" href="logo.jpg">
-
-<meta name="mobile-web-app-capable" content="yes">
-<link rel="shortcut icon" sizes="192x192" href="logo.jpg">
-
-<meta name="theme-color" content="#b91c1c">
+    <link rel="apple-touch-icon" href="logo.jpg">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="shortcut icon" sizes="192x192" href="logo.jpg">
+    <meta name="theme-color" content="#b91c1c">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Seydişehir İtfaiye - Mobil Takip</title>
@@ -45,66 +42,101 @@
         const db = firebase.firestore();
 
         var myMap;
+        var userCoords = null; // Personelin canlı konumunu saklayacağımız değişken
+
         ymaps.ready(() => {
-    myMap = new ymaps.Map("map", { 
-    center: [37.4182, 31.8465], 
-    zoom: 14, 
-    controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
-});
-
-    // Kendi Konum Butonumuzu Kendimiz Yapalım (Ücretsiz ve Anahtarsız)
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-            const myCoords = [pos.coords.latitude, pos.coords.longitude];
-            myMap.setCenter(myCoords, 17);
-            
-            // Personelin olduğu yere mavi bir halka koy
-            const userMarker = new ymaps.Placemark(myCoords, {}, {
-                preset: 'islands#geolocationIcon'
+            myMap = new ymaps.Map("map", { 
+                center: [37.4182, 31.8465], 
+                zoom: 14, 
+                controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
-            myMap.geoObjects.add(userMarker);
-        });
-    }
 
-    verileriGetir();
-});
+            if (navigator.geolocation) {
+                // watchPosition kullanarak personelin konumu değiştikçe mesafeleri canlı güncelliyoruz
+                navigator.geolocation.watchPosition(pos => {
+                    userCoords = [pos.coords.latitude, pos.coords.longitude];
+                    
+                    // Önceki kullanıcı ikonunu temizle
+                    myMap.geoObjects.each(function (obj) {
+                        if (obj.properties.get('id') === 'user') myMap.geoObjects.remove(obj);
+                    });
+
+                    // Personelin olduğu yere canlı mavi halka koy
+                    const userMarker = new ymaps.Placemark(userCoords, {}, {
+                        preset: 'islands#geolocationIcon'
+                    });
+                    userMarker.properties.set('id', 'user');
+                    myMap.geoObjects.add(userMarker);
+
+                    // Konum her güncellendiğinde mesafeleri yeniden hesapla
+                    verileriGetir();
+                }, error => {
+                    console.log("Konum alınamadı:", error);
+                    verileriGetir(); // Konum alınamazsa da hidrantları listele
+                }, { enableHighAccuracy: true });
+            } else {
+                verileriGetir();
+            }
+        });
 
         function verileriGetir() {
-            db.collection("hidrantlar").orderBy("tarih", "desc").onSnapshot(snapshot => {
+            db.collection("hidrantlar").orderBy("tarih", "desc").get().then(snapshot => {
                 const icerik = document.getElementById('liste-icerik');
                 icerik.innerHTML = "";
                 
-                // Sadece hidrantları temizle, personelin kendi konumunu silme
+                // Haritadaki eski hidrantları temizle
                 myMap.geoObjects.each(function (obj) {
                     if (obj.properties.get('id') === 'hidrant') myMap.geoObjects.remove(obj);
                 });
 
                 snapshot.forEach(doc => {
                     const h = doc.data();
+                    let mesafeMetni = "";
+                    let balonMetni = h.ad;
+
+                    // Eğer personelin konumu mevcutsa mesafeyi hesapla
+                    if (userCoords) {
+                        const hidrantCoords = [parseFloat(h.lat), parseFloat(h.lng)];
+                        // İki koordinat arası mesafeyi metre cinsinden ölçer
+                        const mesafeMetre = ymaps.coordSystem.geo.getDistance(userCoords, hidrantCoords);
+                        
+                        if (mesafeMetre < 1000) {
+                            mesafeMetni = `📏 Mesafe: **${Math.round(mesafeMetre)} m**`;
+                        } else {
+                            mesafeMetni = `📏 Mesafe: **${(mesafeMetre / 1000).toFixed(2)} km**`;
+                        }
+                        balonMetni = `${h.ad} (${mesafeMetni.replace(/\*\*/g, '')})`;
+                    }
+
+                    // Listeye ekleme yapıyoruz
                     icerik.innerHTML += `
-    <div class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
-        <div class="d-flex justify-content-between align-items-center">
-            <strong style="font-size:1.1rem;">${h.ad.toUpperCase()}</strong>
-            <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span>
-        </div>
-        <div class="mt-1 text-secondary">Tip: ${h.tip}</div>
-        
-        <div class="row g-2 mt-2">
-            <div class="col-6">
-                <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn-navi" style="background:#ffc107; color:black; display:block; text-align:center; padding:10px; border-radius:8px; text-decoration:none; font-weight:bold;">YANDEX</a>
-            </div>
-            <div class="col-6">
-                <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn-navi" style="background:#007aff; color:white; display:block; text-align:center; padding:10px; border-radius:8px; text-decoration:none; font-weight:bold;">APPLE (iOS)</a>
-            </div>
-        </div>
-        <div class="mt-2 text-center">
-             <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="text-decoration-none small text-muted">Google Haritalar ile Aç</a>
-        </div>
-    </div>`;
+                    <div class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong style="font-size:1.1rem;">${h.ad.toUpperCase()}</strong>
+                            <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span>
+                        </div>
+                        <div class="mt-1 d-flex justify-content-between text-secondary">
+                            <span>Tip: ${h.tip}</span>
+                            <span class="text-danger fw-bold">${mesafeMetni}</span>
+                        </div>
+                        
+                        <div class="row g-2 mt-2">
+                            <div class="col-6">
+                                <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn-navi" style="background:#ffc107; color:black; display:block; text-align:center; padding:10px; border-radius:8px; text-decoration:none; font-weight:bold;">YANDEX</a>
+                            </div>
+                            <div class="col-6">
+                                <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn-navi" style="background:#007aff; color:white; display:block; text-align:center; padding:10px; border-radius:8px; text-decoration:none; font-weight:bold;">iOS (APPLE)</a>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                             <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="text-decoration-none small text-muted">Google Haritalar ile Aç</a>
+                        </div>
+                    </div>`;
                     
+                    // Haritaya hidrantı ekleme
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
                     let placemark = new ymaps.Placemark([h.lat, h.lng], {
-                        balloonContent: h.ad
+                        balloonContent: balonMetni
                     }, {
                         preset: icon
                     });
