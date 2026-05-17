@@ -2,17 +2,14 @@
 <html lang="tr">
 <head>
     <link rel="icon" type="image/jpeg" href="logo.jpg">
-
-<link rel="apple-touch-icon" href="logo.jpg">
-
-<meta name="mobile-web-app-capable" content="yes">
-<link rel="shortcut icon" sizes="192x192" href="logo.jpg">
-
-<meta name="theme-color" content="#b91c1c">
+    <link rel="apple-touch-icon" href="logo.jpg">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="shortcut icon" sizes="192x192" href="logo.jpg">
+    <meta name="theme-color" content="#b91c1c">
     <meta charset="UTF-8">
     <title>Seydişehir İtfaiye - Yönetim Paneli</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://api-maps.yandex.ru/2.1/?lang=tr_TR" type="text/javascript"></script>
+    <script src="https://api-maps.yandex.ru/2.1/?lang=tr_TR&coordorder=longlat" type="text/javascript"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
@@ -69,77 +66,51 @@
         const db = firebase.firestore();
 
         var myMap;
+        var userCoords = null; // Mesafe ölçümü için varsayılan koordinat tanımı
+
         ymaps.ready(() => {
-            // controls kısmına 'geolocationControl' ve 'routeButtonControl' ekledik
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
                 zoom: 14, 
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
             
+            // İlk açılışta verileri otomatik yükle (HATAYDI, EKLENDİ)
+            verileriGetir();
+
+            // Haritaya tıklayınca çalışan garantili adres çözücü
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
-                const lat = coords[0].toFixed(6);
-                const lng = coords[1].toFixed(6);
+                // Enlem ve boylamı doğru sırada alıyoruz (Yandex coordorder'a göre)
+                const lat = coords[1].toFixed(6);
+                const lng = coords[0].toFixed(6);
                 
-                // Koordinatları inputlara anında doldur
                 document.getElementById('h-lat').value = lat;
                 document.getElementById('h-lng').value = lng;
-
-                // Durum mesajını güncelle
                 document.getElementById('canli-adres').innerHTML = "⏳ Adres çözümleniyor...";
 
-                // Engellemeleri aşmak için Nominatim URL'i
-                const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
-
-                // Tarayıcı kimlik engeline takılmamak için istek başlıklarını (headers) güvenli hale getiriyoruz
-                fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Accept-Language': 'tr',
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Ağ yanıtı düzgün değil.');
-                    return response.json();
-                })
-                .then(data => {
-                    if (data && data.address) {
-                        const adr = data.address;
-                        
-                        // Mahalle ve Yol (Cadde/Sokak) bilgisini ayıkla
-                        const mahalle = adr.suburb || adr.neighbourhood || adr.quarter || adr.village || "";
-                        const yol = adr.road || adr.street || "";
-                        
-                        let temizAdres = "";
-                        if (mahalle && yol) {
-                            temizAdres = `${mahalle}, ${yol}`;
-                        } else if (mahalle || yol) {
-                            temizAdres = mahalle || yol;
-                        } else {
-                            // Detay gelmezse kısa ismi kırp
-                            temizAdres = data.display_name ? data.display_name.split(',').slice(0, 2).join(',') : "";
-                        }
-
-                        // Gereksiz şehir isimlerini ayıkla
-                        temizAdres = temizAdres
-                            .replace(", Konya", "")
-                            .replace(", Seydişehir", "")
+                // Resmi Yandex Geocoder motorunu kullanıyoruz
+                ymaps.geocode(coords).then(res => {
+                    const obj = res.geoObjects.get(0);
+                    if (obj) {
+                        const tamAdres = obj.getAddressLine();
+                        const temizAdres = tamAdres
+                            .replace("Türkiye, ", "")
+                            .replace("Konya, ", "")
+                            .replace("Seydişehir, ", "")
                             .replace("Seydişehir", "")
                             .trim();
 
                         document.getElementById('canli-adres').innerHTML = "📍 " + (temizAdres ? temizAdres : "Adres tespit edildi.");
                     } else {
-                        document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı, adres netleştirilemedi.";
+                        document.getElementById('canli-adres').innerHTML = "📍 Adres netleştirilemedi.";
                     }
-                })
-                .catch(err => {
-                    console.error("Adres servisi hatası: ", err);
-                    // HATA ALSA BİLE HARİTA ÇÖKMEZ: Sadece kutuda uyarı verir, koordinat geçerli kalır
-                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı (Adres servisi meşgul).";
+                }).catch(err => {
+                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı (Adres yoğun).";
                 });
             });
+        });
+
         async function kaydet() {
             const ad = document.getElementById('h-ad').value;
             const tip = document.getElementById('h-tip').value;
@@ -152,6 +123,9 @@
             await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, tarih: Date.now() });
             alert("Hidrant Buluta Kaydedildi!");
             document.getElementById('h-ad').value = "";
+            document.getElementById('h-lat').value = "";
+            document.getElementById('h-lng').value = "";
+            document.getElementById('canli-adres').innerHTML = "📍 Haritadan bir noktaya tıklayın...";
         }
 
         function verileriGetir() {
@@ -164,9 +138,8 @@
                     const h = doc.data();
                     let mesafeMetni = "";
 
-                    // userCoords tanımlıysa ve içi doluysa mesafeyi hesapla
-                    if (typeof userCoords !== 'undefined' && userCoords) {
-                        const hidrantCoords = [parseFloat(h.lat), parseFloat(h.lng)];
+                    if (userCoords) {
+                        const hidrantCoords = [parseFloat(h.lng), parseFloat(h.lat)];
                         const mesafeMetre = ymaps.coordSystem.geo.getDistance(userCoords, hidrantCoords);
                         
                         if (mesafeMetre < 1000) {
@@ -175,7 +148,6 @@
                             mesafeMetni = `📏 ${(mesafeMetre / 1000).toFixed(2)} km`;
                         }
                     } else {
-                        // Konum henüz alınamadıysa boş bırak veya küçük bir bilgilendirme yaz
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
                     
@@ -204,25 +176,21 @@
                         </div>`;
                     
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    let balonMetni = (typeof userCoords !== 'undefined' && userCoords) ? `${h.ad} (${mesafeMetni})` : h.ad;
+                    let balonMetni = userCoords ? `${h.ad} (${mesafeMetni})` : h.ad;
 
-                    myMap.geoObjects.add(new ymaps.Placemark([h.lat, h.lng], {balloonContent: balonMetni}, {preset: icon}));
+                    myMap.geoObjects.add(new ymaps.Placemark([parseFloat(h.lng), parseFloat(h.lat)], {balloonContent: balonMetni}, {preset: icon}));
                 });
             });
         }
-        async function sil(id) {
-            // Personelden şifre iste
-            const sifre = prompt("Bu kaydı silmek için yetkili şifresini giriniz:");
 
-            // "KENDI_SIFREN" yazan yeri silip kendi şifreni yaz (tırnaklar kalsın)
+        async function sil(id) {
+            const sifre = prompt("Bu kaydı silmek için yetkili şifresini giriniz:");
             if (sifre === "662__7723") { 
                 if(confirm("Silmek istediğinize emin misiniz?")) {
                     await db.collection("hidrantlar").doc(id).delete();
                     alert("Kayıt başarıyla silindi.");
                 }
-            } else if (sifre === null) {
-                // İptal tuşuna basıldıysa bir şey yapma
-            } else {
+            } else if (sifre !== null) {
                 alert("Hatalı şifre! Silme yetkiniz bulunmamaktadır.");
             }
         }
