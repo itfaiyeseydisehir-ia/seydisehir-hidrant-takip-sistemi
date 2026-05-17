@@ -80,11 +80,10 @@
         });
 
         function verileriGetir() {
-            db.collection("hidrantlar").orderBy("tarih", "desc").get().then(snapshot => {
+            db.collection("hidrantlar").orderBy("tarih", "desc").onSnapshot(snapshot => {
                 const icerik = document.getElementById('liste-icerik');
                 icerik.innerHTML = "";
                 
-                // Haritadaki eski hidrantları temizle
                 myMap.geoObjects.each(function (obj) {
                     if (obj.properties.get('id') === 'hidrant') myMap.geoObjects.remove(obj);
                 });
@@ -92,49 +91,45 @@
                 snapshot.forEach(doc => {
                     const h = doc.data();
                     let mesafeMetni = "";
-                    let balonMetni = h.ad;
 
-                    // Eğer personelin konumu mevcutsa mesafeyi hesapla
                     if (userCoords) {
                         const hidrantCoords = [parseFloat(h.lat), parseFloat(h.lng)];
-                        // İki koordinat arası mesafeyi metre cinsinden ölçer
                         const mesafeMetre = ymaps.coordSystem.geo.getDistance(userCoords, hidrantCoords);
                         
                         if (mesafeMetre < 1000) {
-                            mesafeMetni = `📏 Mesafe: **${Math.round(mesafeMetre)} m**`;
+                            mesafeMetni = `📏 ${Math.round(mesafeMetre)} m`;
                         } else {
-                            mesafeMetni = `📏 Mesafe: **${(mesafeMetre / 1000).toFixed(2)} km**`;
+                            mesafeMetni = `📏 ${(mesafeMetre / 1000).toFixed(2)} km`;
                         }
-                        balonMetni = `${h.ad} (${mesafeMetni.replace(/\*\*/g, '')})`;
                     }
 
-                    // Listeye ekleme yapıyoruz
                     icerik.innerHTML += `
                     <div class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
                         <div class="d-flex justify-content-between align-items-center">
                             <strong style="font-size:1.1rem;">${h.ad.toUpperCase()}</strong>
                             <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span>
                         </div>
-                        <div class="mt-1 d-flex justify-content-between text-secondary">
+                        <div class="mt-1 d-flex justify-content-between text-secondary" style="font-size: 0.9rem;">
                             <span>Tip: ${h.tip}</span>
                             <span class="text-danger fw-bold">${mesafeMetni}</span>
                         </div>
                         
-                        <div class="row g-2 mt-2">
-                            <div class="col-6">
-                                <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn-navi" style="background:#ffc107; color:black; display:block; text-align:center; padding:10px; border-radius:8px; text-decoration:none; font-weight:bold;">YANDEX</a>
+                        <div class="row g-1 mt-2">
+                            <div class="col-4">
+                                <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn btn-warning btn-sm w-100 fw-bold pt-2 pb-2" style="font-size:10px; color:black;">YANDEX<br><span style="font-size:8px; font-weight:normal;">(Android)</span></a>
                             </div>
-                            <div class="col-6">
-                                <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn-navi" style="background:#007aff; color:white; display:block; text-align:center; padding:10px; border-radius:8px; text-decoration:none; font-weight:bold;">iOS (APPLE)</a>
+                            <div class="col-4">
+                                <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px; background:#007aff;">iOS<br><span style="font-size:8px; font-weight:normal;">(APPLE)</span></a>
                             </div>
-                        </div>
-                        <div class="text-center mt-2">
-                             <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="text-decoration-none small text-muted">Google Haritalar ile Aç</a>
+                            <div class="col-4">
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px;">GOOGLE<br><span style="font-size:8px; font-weight:normal;">MAPS</span></a>
+                            </div>
                         </div>
                     </div>`;
                     
-                    // Haritaya hidrantı ekleme
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
+                    let balonMetni = userCoords ? `${h.ad} (${mesafeMetni})` : h.ad;
+                    
                     let placemark = new ymaps.Placemark([h.lat, h.lng], {
                         balloonContent: balonMetni
                     }, {
