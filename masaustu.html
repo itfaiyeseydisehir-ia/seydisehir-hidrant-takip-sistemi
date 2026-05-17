@@ -42,6 +42,11 @@
                         <div class="col"><input type="text" id="h-lat" class="form-control form-control-sm" placeholder="Lat" readonly></div>
                         <div class="col"><input type="text" id="h-lng" class="form-control form-control-sm" placeholder="Lng" readonly></div>
                     </div>
+
+                    <div id="canli-adres" class="text-muted small mb-3 fw-bold text-center" style="font-size: 0.8rem; background: #f8fafc; padding: 6px; border-radius: 6px; border: 1px dashed #cbd5e1;">
+                        📍 Haritadan bir noktaya tıklayın...
+                    </div>
+                    
                     <button class="btn btn-danger w-100 fw-bold" onclick="kaydet()">BULUTA KAYDET</button>
                     <hr>
                     <div id="liste"></div>
@@ -74,8 +79,36 @@
             
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
+                
+                // Senin mevcut input ID'lerine (h-lat ve h-lng) göre koordinatları yazdırıyoruz
                 document.getElementById('h-lat').value = coords[0].toFixed(6);
                 document.getElementById('h-lng').value = coords[1].toFixed(6);
+
+                // Adres kutusuna yükleniyor animasyonu yazalım
+                document.getElementById('canli-adres').innerHTML = "⏳ Adres çözümleniyor...";
+
+                // Yandex altyapısıyla haritadan adres çekme (Ters Jeokodlama)
+                ymaps.geocode(coords).then(res => {
+                    const firstGeoObject = res.geoObjects.get(0);
+                    
+                    if (firstGeoObject) {
+                        // Tam adresi alıp Türkiye, Konya, Seydişehir kelimelerini temizliyoruz
+                        const tamAdres = firstGeoObject.getAddressLine();
+                        const temizAdres = tamAdres
+                            .replace("Türkiye, ", "")
+                            .replace("Konya, ", "")
+                            .replace("Seydişehir, ", "")
+                            .replace("Seydişehir", ""); // Ekstra temizlik
+
+                        // Temizlenen Mahalle, Sokak bilgisini küçük kutuya basıyoruz
+                        document.getElementById('canli-adres').innerHTML = "📍 " + temizAdres;
+                    } else {
+                        document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı fakat adres bulunamadı.";
+                    }
+                }).catch(err => {
+                    console.error(err);
+                    document.getElementById('canli-adres').innerHTML = "📍 Adres bilgisi şu an alınamadı.";
+                });
             });
             verileriGetir();
         });
