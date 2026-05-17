@@ -65,7 +65,13 @@
 
         var myMap;
         ymaps.ready(() => {
-            myMap = new ymaps.Map("map", { center: [37.4182, 31.8465], zoom: 14, controls: ['zoomControl'] });
+            // controls kısmına 'geolocationControl' ve 'routeButtonControl' ekledik
+            myMap = new ymaps.Map("map", { 
+                center: [37.4182, 31.8465], 
+                zoom: 14, 
+                controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
+            });
+            
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 document.getElementById('h-lat').value = coords[0].toFixed(6);
