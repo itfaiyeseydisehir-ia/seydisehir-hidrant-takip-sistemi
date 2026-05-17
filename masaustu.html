@@ -82,26 +82,34 @@
                 const lat = coords[0].toFixed(6);
                 const lng = coords[1].toFixed(6);
                 
-                // Koordinatları kutucuklara yazdır
+                // Koordinatları inputlara anında doldur
                 document.getElementById('h-lat').value = lat;
                 document.getElementById('h-lng').value = lng;
 
-                // Durumu güncelle
+                // Durum mesajını güncelle
                 document.getElementById('canli-adres').innerHTML = "⏳ Adres çözümleniyor...";
 
-                // Dünyanın en kararlı açık kaynaklı adres servisi (Nominatim)
+                // Engellemeleri aşmak için Nominatim URL'i
                 const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
 
+                // Tarayıcı kimlik engeline takılmamak için istek başlıklarını (headers) güvenli hale getiriyoruz
                 fetch(url, {
-                    headers: { 'Accept-Language': 'tr' } // Adreslerin Türkçe gelmesi için
+                    method: 'GET',
+                    headers: {
+                        'Accept-Language': 'tr',
+                        'Content-Type': 'application/json'
+                    }
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Ağ yanıtı düzgün değil.');
+                    return response.json();
+                })
                 .then(data => {
                     if (data && data.address) {
                         const adr = data.address;
                         
                         // Mahalle ve Yol (Cadde/Sokak) bilgisini ayıkla
-                        const mahalle = adr.suburb || adr.neighbourhood || adr.quarter || "";
+                        const mahalle = adr.suburb || adr.neighbourhood || adr.quarter || adr.village || "";
                         const yol = adr.road || adr.street || "";
                         
                         let temizAdres = "";
@@ -110,24 +118,26 @@
                         } else if (mahalle || yol) {
                             temizAdres = mahalle || yol;
                         } else {
-                            // Eğer detaylı ayıklanamadıysa genel kısa adresi al
-                            temizAdres = data.display_name.split(',').slice(0, 2).join(',');
+                            // Detay gelmezse kısa ismi kırp
+                            temizAdres = data.display_name ? data.display_name.split(',').slice(0, 2).join(',') : "";
                         }
 
-                        // Konya, Seydişehir gibi zaten bildiğimiz kelimeleri temizleyelim
+                        // Gereksiz şehir isimlerini ayıkla
                         temizAdres = temizAdres
                             .replace(", Konya", "")
                             .replace(", Seydişehir", "")
-                            .replace("Seydişehir", "");
+                            .replace("Seydişehir", "")
+                            .trim();
 
-                        document.getElementById('canli-adres').innerHTML = "📍 " + temizAdres;
+                        document.getElementById('canli-adres').innerHTML = "📍 " + (temizAdres ? temizAdres : "Adres tespit edildi.");
                     } else {
-                        document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı, adres çözülemedi.";
+                        document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı, adres netleştirilemedi.";
                     }
                 })
                 .catch(err => {
-                    console.error("Adres hatası: ", err);
-                    document.getElementById('canli-adres').innerHTML = "📍 Adres servisi yanıt vermedi.";
+                    console.error("Adres servisi hatası: ", err);
+                    // HATA ALSA BİLE HARİTA ÇÖKMEZ: Sadece kutuda uyarı verir, koordinat geçerli kalır
+                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı (Adres servisi meşgul).";
                 });
             });
         async function kaydet() {
