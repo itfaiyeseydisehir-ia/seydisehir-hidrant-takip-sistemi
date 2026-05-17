@@ -47,10 +47,10 @@
         var myMap;
         ymaps.ready(() => {
     myMap = new ymaps.Map("map", { 
-        center: [37.4182, 31.8465], 
-        zoom: 15, 
-        controls: ['zoomControl'] // 'geolocationControl'u buradan sildik
-    });
+    center: [37.4182, 31.8465], 
+    zoom: 14, 
+    controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
+});
 
     // Kendi Konum Butonumuzu Kendimiz Yapalım (Ücretsiz ve Anahtarsız)
     if (navigator.geolocation) {
