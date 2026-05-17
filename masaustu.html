@@ -102,32 +102,47 @@
                 
                 snapshot.forEach(doc => {
                     const h = doc.data();
+                    let mesafeMetni = "";
+
+                    if (userCoords) {
+                        const hidrantCoords = [parseFloat(h.lat), parseFloat(h.lng)];
+                        const mesafeMetre = ymaps.coordSystem.geo.getDistance(userCoords, hidrantCoords);
+                        
+                        if (mesafeMetre < 1000) {
+                            mesafeMetni = `📏 ${Math.round(mesafeMetre)} m`;
+                        } else {
+                            mesafeMetni = `📏 ${(mesafeMetre / 1000).toFixed(2)} km`;
+                        }
+                    }
                     
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <strong class="d-block text-dark">${h.ad.toUpperCase()}</strong>
+                                <div style="max-width: 85%;">
+                                    <strong class="d-block text-dark" style="font-size:1rem;">${h.ad.toUpperCase()}</strong>
                                     <small class="text-muted">${h.tip} - <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span></small>
+                                    <small class="text-danger fw-bold d-block mt-1">${mesafeMetni}</small>
                                 </div>
-                                <button class="btn btn-sm btn-outline-danger border-0" onclick="sil('${doc.id}')" title="Sil">🗑️</button>
+                                <button class="btn btn-sm btn-outline-danger border-0 p-0" onclick="sil('${doc.id}')" title="Sil" style="font-size:1.2rem;">🗑️</button>
                             </div>
                             
                             <div class="row g-1 mt-2">
-                                <div class="col-6">
-                                    <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn btn-warning btn-sm w-100 fw-bold" style="font-size:10px;">YANDEX</a>
+                                <div class="col-4">
+                                    <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn btn-warning btn-sm w-100 fw-bold pt-2 pb-2" style="font-size:9px; color:black;">YANDEX<br><span style="font-size:7px; font-weight:normal;">(Android)</span></a>
                                 </div>
-                                <div class="col-6">
-                                    <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold text-white" style="font-size:10px;">iOS (APPLE)</a>
+                                <div class="col-4">
+                                    <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px; background:#007aff;">iOS<br><span style="font-size:7px; font-weight:normal;">(APPLE)</span></a>
                                 </div>
-                            </div>
-                            <div class="text-center mt-2">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="text-muted small" style="text-decoration:none; font-size:11px;">🌐 Google Haritalar</a>
+                                <div class="col-4">
+                                    <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
+                                </div>
                             </div>
                         </div>`;
                     
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    myMap.geoObjects.add(new ymaps.Placemark([h.lat, h.lng], {balloonContent: h.ad}, {preset: icon}));
+                    let balonMetni = userCoords ? `${h.ad} (${mesafeMetni})` : h.ad;
+
+                    myMap.geoObjects.add(new ymaps.Placemark([h.lat, h.lng], {balloonContent: balonMetni}, {preset: icon}));
                 });
             });
         }
