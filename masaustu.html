@@ -80,34 +80,38 @@
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 
-                // Senin mevcut input ID'lerine (h-lat ve h-lng) göre koordinatları yazdırıyoruz
+                // Koordinatları inputlara doldur
                 document.getElementById('h-lat').value = coords[0].toFixed(6);
                 document.getElementById('h-lng').value = coords[1].toFixed(6);
 
-                // Adres kutusuna yükleniyor animasyonu yazalım
+                // Yükleniyor durumunu göster
                 document.getElementById('canli-adres').innerHTML = "⏳ Adres çözümleniyor...";
 
-                // Yandex altyapısıyla haritadan adres çekme (Ters Jeokodlama)
-                ymaps.geocode(coords).then(res => {
+                // GARANTİLİ YANDEX GEOCODE METODU
+                ymaps.geocode(coords, { results: 1 }).then(res => {
+                    // Gelen verinin varlığını daha sıkı kontrol ediyoruz
                     const firstGeoObject = res.geoObjects.get(0);
                     
                     if (firstGeoObject) {
-                        // Tam adresi alıp Türkiye, Konya, Seydişehir kelimelerini temizliyoruz
                         const tamAdres = firstGeoObject.getAddressLine();
+                        
+                        // Seydişehir, Konya ve Türkiye kelimelerini ayıkla
                         const temizAdres = tamAdres
                             .replace("Türkiye, ", "")
                             .replace("Konya, ", "")
                             .replace("Seydişehir, ", "")
-                            .replace("Seydişehir", ""); // Ekstra temizlik
+                            .replace("Seydişehir", "");
 
-                        // Temizlenen Mahalle, Sokak bilgisini küçük kutuya basıyoruz
-                        document.getElementById('canli-adres').innerHTML = "📍 " + temizAdres;
+                        document.getElementById('canli-adres').innerHTML = "📍 " + (temizAdres ? temizAdres : "Adres metni boş döndü.");
                     } else {
-                        document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı fakat adres bulunamadı.";
+                        document.getElementById('canli-adres').innerHTML = "📍 Koordinat haritada eşleşmedi.";
                     }
                 }).catch(err => {
-                    console.error(err);
-                    document.getElementById('canli-adres').innerHTML = "📍 Adres bilgisi şu an alınamadı.";
+                    // Konsola hatanın gerçek sebebini yazdırıyoruz (F12 inceleme ekranı için)
+                    console.error("Yandex Geocode Hatası: ", err);
+                    
+                    // Kullanıcıya protokol uyarısını da içerecek şekilde bilgi veriyoruz
+                    document.getElementById('canli-adres').innerHTML = "📍 Adres alınamadı (GitHub/Https üzerinden deneyin).";
                 });
             });
             verileriGetir();
