@@ -79,44 +79,57 @@
             
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
+                const lat = coords[0].toFixed(6);
+                const lng = coords[1].toFixed(6);
                 
-                // Koordinatları inputlara doldur
-                document.getElementById('h-lat').value = coords[0].toFixed(6);
-                document.getElementById('h-lng').value = coords[1].toFixed(6);
+                // Koordinatları kutucuklara yazdır
+                document.getElementById('h-lat').value = lat;
+                document.getElementById('h-lng').value = lng;
 
-                // Yükleniyor durumunu göster
+                // Durumu güncelle
                 document.getElementById('canli-adres').innerHTML = "⏳ Adres çözümleniyor...";
 
-                // GARANTİLİ YANDEX GEOCODE METODU
-                ymaps.geocode(coords, { results: 1 }).then(res => {
-                    // Gelen verinin varlığını daha sıkı kontrol ediyoruz
-                    const firstGeoObject = res.geoObjects.get(0);
-                    
-                    if (firstGeoObject) {
-                        const tamAdres = firstGeoObject.getAddressLine();
+                // Dünyanın en kararlı açık kaynaklı adres servisi (Nominatim)
+                const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+
+                fetch(url, {
+                    headers: { 'Accept-Language': 'tr' } // Adreslerin Türkçe gelmesi için
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.address) {
+                        const adr = data.address;
                         
-                        // Seydişehir, Konya ve Türkiye kelimelerini ayıkla
-                        const temizAdres = tamAdres
-                            .replace("Türkiye, ", "")
-                            .replace("Konya, ", "")
-                            .replace("Seydişehir, ", "")
+                        // Mahalle ve Yol (Cadde/Sokak) bilgisini ayıkla
+                        const mahalle = adr.suburb || adr.neighbourhood || adr.quarter || "";
+                        const yol = adr.road || adr.street || "";
+                        
+                        let temizAdres = "";
+                        if (mahalle && yol) {
+                            temizAdres = `${mahalle}, ${yol}`;
+                        } else if (mahalle || yol) {
+                            temizAdres = mahalle || yol;
+                        } else {
+                            // Eğer detaylı ayıklanamadıysa genel kısa adresi al
+                            temizAdres = data.display_name.split(',').slice(0, 2).join(',');
+                        }
+
+                        // Konya, Seydişehir gibi zaten bildiğimiz kelimeleri temizleyelim
+                        temizAdres = temizAdres
+                            .replace(", Konya", "")
+                            .replace(", Seydişehir", "")
                             .replace("Seydişehir", "");
 
-                        document.getElementById('canli-adres').innerHTML = "📍 " + (temizAdres ? temizAdres : "Adres metni boş döndü.");
+                        document.getElementById('canli-adres').innerHTML = "📍 " + temizAdres;
                     } else {
-                        document.getElementById('canli-adres').innerHTML = "📍 Koordinat haritada eşleşmedi.";
+                        document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı, adres çözülemedi.";
                     }
-                }).catch(err => {
-                    // Konsola hatanın gerçek sebebini yazdırıyoruz (F12 inceleme ekranı için)
-                    console.error("Yandex Geocode Hatası: ", err);
-                    
-                    // Kullanıcıya protokol uyarısını da içerecek şekilde bilgi veriyoruz
-                    document.getElementById('canli-adres').innerHTML = "📍 Adres alınamadı (GitHub/Https üzerinden deneyin).";
+                })
+                .catch(err => {
+                    console.error("Adres hatası: ", err);
+                    document.getElementById('canli-adres').innerHTML = "📍 Adres servisi yanıt vermedi.";
                 });
             });
-            verileriGetir();
-        });
-
         async function kaydet() {
             const ad = document.getElementById('h-ad').value;
             const tip = document.getElementById('h-tip').value;
