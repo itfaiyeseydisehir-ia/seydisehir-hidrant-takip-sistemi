@@ -104,7 +104,8 @@
                     const h = doc.data();
                     let mesafeMetni = "";
 
-                    if (userCoords) {
+                    // userCoords tanımlıysa ve içi doluysa mesafeyi hesapla
+                    if (typeof userCoords !== 'undefined' && userCoords) {
                         const hidrantCoords = [parseFloat(h.lat), parseFloat(h.lng)];
                         const mesafeMetre = ymaps.coordSystem.geo.getDistance(userCoords, hidrantCoords);
                         
@@ -113,6 +114,9 @@
                         } else {
                             mesafeMetni = `📏 ${(mesafeMetre / 1000).toFixed(2)} km`;
                         }
+                    } else {
+                        // Konum henüz alınamadıysa boş bırak veya küçük bir bilgilendirme yaz
+                        mesafeMetni = "📏 Konum bekleniyor...";
                     }
                     
                     liste.innerHTML += `
@@ -140,7 +144,7 @@
                         </div>`;
                     
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    let balonMetni = userCoords ? `${h.ad} (${mesafeMetni})` : h.ad;
+                    let balonMetni = (typeof userCoords !== 'undefined' && userCoords) ? `${h.ad} (${mesafeMetni})` : h.ad;
 
                     myMap.geoObjects.add(new ymaps.Placemark([h.lat, h.lng], {balloonContent: balonMetni}, {preset: icon}));
                 });
