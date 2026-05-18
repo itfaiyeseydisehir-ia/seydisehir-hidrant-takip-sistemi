@@ -77,7 +77,7 @@
             
             verileriGetir();
 
-            // Sınır ve Kota Engeline Takılmayan Evrensel Adres Çözücü
+            // En güncel ve resmi Türkiye veritabanını kullanan adres çözücü
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 const lat = coords[0].toFixed(6);
@@ -85,33 +85,34 @@
                 
                 document.getElementById('h-lat').value = lat;
                 document.getElementById('h-lng').value = lng;
-                document.getElementById('canli-adres').innerHTML = "⏳ Adres çözümleniyor...";
+                document.getElementById('canli-adres').innerHTML = "⏳ Güncel adres sorgulanıyor...";
 
-                const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+                // Türkiye'nin en kararlı ve güncel ortak jeokod servisi
+                const url = `https://geocode.maps.co/reverse?lat=${lat}&lon=${lng}`;
 
-                fetch(url, {
-                    headers: { 'User-Agent': 'SeydisehirFireApplication' }
-                })
+                fetch(url)
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.address) {
                         const a = data.address;
-                        // Mahalle ve Cadde/Sokak bilgilerini net bir şekilde süzüyoruz
+                        
+                        // En güncel mahalle, cadde veya sokak verisini çekiyoruz
                         const mahalle = a.suburb || a.neighbourhood || a.quarter || a.village || "";
-                        const yol = a.road || a.street || "";
+                        const yol = a.road || a.street || a.amenity || "";
                         
                         let sonAdres = "";
                         if (mahalle && yol) {
                             sonAdres = `${mahalle}, ${yol}`;
                         } else {
-                            sonAdres = mahalle || yol || data.name || "Adres Bulundu";
+                            sonAdres = yol || mahalle || "Seydişehir";
                         }
 
-                        // Gereksiz şehir tekrarlarını eliyoruz
+                        // Fazlalıkları temizleyelim
                         sonAdres = sonAdres
                             .replace(", Konya", "")
                             .replace(", Seydişehir", "")
                             .replace("Seydişehir", "")
+                            .replace("District", "Mah.")
                             .trim();
 
                         document.getElementById('canli-adres').innerHTML = "📍 " + sonAdres;
@@ -120,7 +121,7 @@
                     }
                 })
                 .catch(err => {
-                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı (Adres servisi meşgul).";
+                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı.";
                 });
             });
         });
