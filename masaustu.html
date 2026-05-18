@@ -26,7 +26,7 @@
             <div class="col-md-3">
                 <div class="sidebar">
                     <h5 class="text-danger fw-bold mb-3">Yeni Hidrant Ekle</h5>
-                    <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki Adı (Örn: İtfaiye Arkası)">
+                    <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki Adı (Örn: Park Girişi)">
                     <select id="h-tip" class="form-select mb-2">
                         <option value="Yer Üstü">🟥 Yer Üstü Hidrant</option>
                         <option value="Yer Altı">🟦 Yer Altı Hidrant</option>
@@ -41,8 +41,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="text-dark small fw-bold mb-1">📍 Mahalle, Yeni Sokak Adı / No giriniz:</label>
-                        <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Haritadan seçip buraya elle yazın..." style="background: #fff5f5; border: 1px solid #b91c1c;">
+                        <label class="text-dark small fw-bold mb-1">📍 Otomatik Adres Bilgisi</label>
+                        <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Haritaya tıklayın..." style="background: #f8fafc; border: 1px dashed #cbd5e1;" readonly>
                     </div>
                     
                     <button class="btn btn-danger w-100 fw-bold" onclick="kaydet()">BULUTA KAYDET</button>
@@ -70,16 +70,15 @@
         var userCoords = null; 
 
         ymaps.ready(() => {
-            // Seydişehir merkezli haritayı kuruyoruz
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
-                zoom: 16, // Sokak numaralarının haritada net görünmesi için zoom'u yaklaştırdım amirim
+                zoom: 15, 
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
             
             verileriGetir();
 
-            // Sadece koordinat alan ve sistemi asla çökertmeyen temiz tıklama olayı
+            // Sınırsız ve Şifresiz Açık Adres Motoru Entegrasyonu
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 const lat = coords[0].toFixed(6);
@@ -87,9 +86,57 @@
                 
                 document.getElementById('h-lat').value = lat;
                 document.getElementById('h-lng').value = lng;
-                
-                // Personeli kutuya odaklıyoruz
-                document.getElementById('h-adres').focus();
+                document.getElementById('h-adres').value = "⏳ Adres çözülüyor...";
+
+                // API Key istemeyen, doğrudan koordinattan Mahalle/Sokak söken evrensel motor
+                const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=tr`;
+
+                fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    if (data) {
+                        // Mahalle bilgisini çekiyoruz
+                        let mahalle = data.locality || "";
+                        
+                        // Detaylı adres diziliminden cadde, sokak ve kapı numarasını süzüyoruz
+                        let yolBilgisi = "";
+                        if (data.informative && data.informative.length > 0) {
+                            // En spesifik sokak/cadde elemanını bulmaya çalışıyoruz
+                            const sokakElemani = data.informative.find(item => 
+                                item.description && (item.description.includes("sokak") || item.description.includes("caddesi") || item.description.includes("yolu") || item.name.includes("Sokak") || item.name.includes("Cadde"))
+                            );
+                            if (sokakElemani) {
+                                yolBilgisi = sokakElemani.name;
+                            } else {
+                                // Eğer özel sokak bulamazsa son güncel lokal mevkii adını alıyoruz
+                                yolBilgisi = data.informative[data.informative.length - 1].name || "";
+                            }
+                        }
+
+                        // Mahalle ve Sokak bilgilerini birleştiriyoruz
+                        let tamAdres = "";
+                        if (mahalle && yolBilgisi && mahalle !== yolBilgisi) {
+                            tamAdres = `${mahalle}, ${yolBilgisi}`;
+                        } else {
+                            tamAdres = yolBilgisi || mahalle || "Seydişehir";
+                        }
+
+                        // Seydişehir, Konya gibi gereksiz şehir tekrarlarını temizleyelim
+                        tamAdres = tamAdres
+                            .replace(", Konya", "")
+                            .replace(", Seydişehir", "")
+                            .replace("Seydişehir", "")
+                            .trim();
+
+                        document.getElementById('h-adres').value = tamAdres ? tamAdres : "Adres Tespit Edildi.";
+                    } else {
+                        document.getElementById('h-adres').value = "Adres bulunamadı.";
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('h-adres').value = "Koordinat alındı.";
+                });
             });
         });
 
@@ -101,16 +148,15 @@
             const lng = document.getElementById('h-lng').value;
             const adres = document.getElementById('h-adres').value;
 
-            if(!ad || !lat || !adres) return alert("Lütfen Mevki Adı, Haritadan Konum ve Adres Bilgisini girin!");
+            if(!ad || !lat) return alert("Lütfen isim ve konum seçin!");
 
             await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, adres, tarih: Date.now() });
-            alert("Hidrant Başarıyla Kaydedildi!");
-            
-            // Kayıttan sonra kutuları temizle
+            alert("Hidrant Buluta Kaydedildi!");
             document.getElementById('h-ad').value = "";
             document.getElementById('h-lat').value = "";
             document.getElementById('h-lng').value = "";
             document.getElementById('h-adres').value = "";
+            document.getElementById('h-adres').placeholder = "Haritaya tıklayın...";
         }
 
         function verileriGetir() {
@@ -136,9 +182,9 @@
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
                     
-                    const gösterilecekAdres = h.adres ? h.adres : "Adres belirtilmemiş";
+                    const gösterilecekAdres = h.adres ? h.adres : "Adres bilgisi yok";
 
-                    // Hatalı buton linkleri %100 çalışan resmi Google, Apple ve Yandex protokollerine çevrildi
+                    // Google Maps link hatası kökten çözüldü, doğrudan koordinata kilitlenir
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
