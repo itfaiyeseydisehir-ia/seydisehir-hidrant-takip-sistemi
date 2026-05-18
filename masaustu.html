@@ -41,7 +41,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="text-muted small fw-bold mb-1">📍 Otomatik Adres Bilgisi</label>
+                        <label class="text-muted small fw-bold mb-1">📍 Otomatik Adres (Yandex Güncel Veri)</label>
                         <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Haritaya tıklayın..." style="background: #f8fafc; border: 1px dashed #cbd5e1;" readonly>
                     </div>
                     
@@ -78,7 +78,7 @@
             
             verileriGetir();
 
-            // Yandex'in kendi API havuzundan sınırsız veri çeken güvenli sistem
+            // Harita üzerinde görünen yeni sokak numaralarını yakalayan doğrudan ters-jeokodlama fonksiyonu
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 const lat = coords[0].toFixed(6);
@@ -86,31 +86,28 @@
                 
                 document.getElementById('h-lat').value = lat;
                 document.getElementById('h-lng').value = lng;
-                document.getElementById('h-adres').value = "⏳ Adres çözümleniyor...";
+                document.getElementById('h-adres').value = "⏳ Güncel Yandex adresi çözülüyor...";
 
-                // Yandex'in resmi açık havuz harita servisi
-                const url = `https://geocode-maps.yandex.ru/1.x/?apikey=85686016-56ff-4cb9-95a2-f6782db8c067&geocode=${lng},${lat}&format=json&lang=tr_TR`;
+                // Yandex harita motorunun kendi veritabanındaki en güncel lokal katmanı sorguluyoruz
+                ymaps.geocode(coords, { kind: 'house', results: 1 }).then(res => {
+                    const firstGeoObject = res.geoObjects.get(0);
+                    if (firstGeoObject) {
+                        const tamAdres = firstGeoObject.getAddressLine();
+                        
+                        // Fazlalıkları uçurup sadece yeni Mahalle, Sokak ve Kapı No bilgisini bırakıyoruz
+                        let temizAdres = tamAdres
+                            .replace("Türkiye, ", "")
+                            .replace("Konya, ", "")
+                            .replace("Seydişehir, ", "")
+                            .replace("Seydişehir", "")
+                            .trim();
 
-                fetch(url)
-                .then(res => res.json())
-                .then(data => {
-                    // Yandex JSON ağacından en derin ve kararlı adres satırını buluyoruz
-                    const geoObject = data.response.GeoObjectCollection.featureMember[0].GeoObject;
-                    const tamAdres = geoObject.metaDataProperty.GeocoderMetaData.Address.formatted;
-                    
-                    // Gereksiz Türkiye, Konya kelimelerini temizleyip doğrudan Mahalle/Sokak bırakıyoruz
-                    let temizAdres = tamAdres
-                        .replace("Türkiye, ", "")
-                        .replace("Konya, ", "")
-                        .replace("Seydişehir, ", "")
-                        .replace("Seydişehir", "")
-                        .trim();
-
-                    document.getElementById('h-adres').value = temizAdres ? temizAdres : "Mevki Tespit Edildi.";
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById('h-adres').value = "Konum Alındı.";
+                        document.getElementById('h-adres').value = temizAdres ? temizAdres : "Seydişehir (Yeni Numara Alındı)";
+                    } else {
+                        document.getElementById('h-adres').value = "Yeni adres katmanı boş döndü.";
+                    }
+                }).catch(err => {
+                    document.getElementById('h-adres').value = "Yandex adresi okuyamadı.";
                 });
             });
         });
@@ -159,6 +156,7 @@
                     
                     const gösterilecekAdres = h.adres ? h.adres : "Adres bilgisi yok";
 
+                    // Google Maps buton linki düzeltildi: Google haritası eski numarada olsa bile, arama çubuğuna Seydişehir + yeni adresi yazarak açar.
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
