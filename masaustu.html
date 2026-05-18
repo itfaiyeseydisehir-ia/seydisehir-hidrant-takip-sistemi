@@ -69,7 +69,6 @@
         var userCoords = null; 
 
         ymaps.ready(() => {
-            // Seydişehir merkez koordinatları
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
                 zoom: 14, 
@@ -78,7 +77,7 @@
             
             verileriGetir();
 
-            // Sınırlamalara takılmayan HTTP Tabanlı Adres Çözücü
+            // Sınır ve Kota Engeline Takılmayan Evrensel Adres Çözücü
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 const lat = coords[0].toFixed(6);
@@ -88,37 +87,40 @@
                 document.getElementById('h-lng').value = lng;
                 document.getElementById('canli-adres').innerHTML = "⏳ Adres çözümleniyor...";
 
-                // Yandex'in kütüphane engeline takılmamak için doğrudan genel API servisine tarayıcı üzerinden istek atıyoruz
-                const url = `https://geocode-maps.yandex.ru/1.x/?apikey=85686016-56ff-4cb9-95a2-f6782db8c067&geocode=${lng},${lat}&format=json&lang=tr_TR`;
+                const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
 
-                fetch(url)
-                .then(response => response.json())
+                fetch(url, {
+                    headers: { 'User-Agent': 'SeydisehirFireApplication' }
+                })
+                .then(res => res.json())
                 .then(data => {
-                    try {
-                        // Yandex JSON çıktısından adres satırını ayıklıyoruz
-                        const featureMember = data.response.GeoObjectCollection.featureMember;
-                        if (featureMember && featureMember.length > 0) {
-                            const tamAdres = featureMember[0].GeoObject.metaDataProperty.GeocoderMetaData.text;
-                            
-                            // Başındaki Türkiye, Konya, Seydişehir kalıplarını temizliyoruz
-                            const temizAdres = tamAdres
-                                .replace("Türkiye, ", "")
-                                .replace("Konya, ", "")
-                                .replace("Seydişehir, ", "")
-                                .replace("Seydişehir", "")
-                                .trim();
-
-                            document.getElementById('canli-adres').innerHTML = "📍 " + (temizAdres ? temizAdres : "Adres tespit edildi.");
+                    if (data && data.address) {
+                        const a = data.address;
+                        // Mahalle ve Cadde/Sokak bilgilerini net bir şekilde süzüyoruz
+                        const mahalle = a.suburb || a.neighbourhood || a.quarter || a.village || "";
+                        const yol = a.road || a.street || "";
+                        
+                        let sonAdres = "";
+                        if (mahalle && yol) {
+                            sonAdres = `${mahalle}, ${yol}`;
                         } else {
-                            document.getElementById('canli-adres').innerHTML = "📍 Adres netleştirilemedi.";
+                            sonAdres = mahalle || yol || data.name || "Adres Bulundu";
                         }
-                    } catch (e) {
-                        document.getElementById('canli-adres').innerHTML = "📍 Adres formatı çözülemedi.";
+
+                        // Gereksiz şehir tekrarlarını eliyoruz
+                        sonAdres = sonAdres
+                            .replace(", Konya", "")
+                            .replace(", Seydişehir", "")
+                            .replace("Seydişehir", "")
+                            .trim();
+
+                        document.getElementById('canli-adres').innerHTML = "📍 " + sonAdres;
+                    } else {
+                        document.getElementById('canli-adres').innerHTML = "📍 Adres netleştirilemedi.";
                     }
                 })
                 .catch(err => {
-                    console.error("Adres hatası:", err);
-                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı (Adres servisi yanıt vermedi).";
+                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı (Adres servisi meşgul).";
                 });
             });
         });
@@ -182,7 +184,7 @@
                                     <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px; background:#007aff;">iOS<br><span style="font-size:7px; font-weight:normal;">(APPLE)</span></a>
                                 </div>
                                 <div class="col-4">
-                                    <a href="https://maps.google.com/?q=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
+                                    <a href="https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
                                 </div>
                             </div>
                         </div>`;
