@@ -70,41 +70,34 @@
         var userCoords = null; 
 
         ymaps.ready(() => {
-            // İlk açılış Seydişehir merkez
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
                 zoom: 14, 
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
             
-            // Masaüstü cihazın kendi konumunu bulma ve kırmızı işaret koyma fonksiyonu
+            // Masaüstü cihazın konumunu bulma ve kırmızı işaret koyma
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(position => {
                     userCoords = [position.coords.latitude, position.coords.longitude];
-                    
-                    // Haritayı kullanıcının gerçek konumuna kaydır
                     myMap.setCenter(userCoords, 15);
                     
-                    // Mevcut konumumuza kırmızı büyük bir işaret bırakıyoruz
                     var myLocationMarker = new ymaps.Placemark(userCoords, {
-                        balloonContent: '📍 Şu An Buradasınız (İtfaiye Paneli/Masaüstü)'
+                        balloonContent: '📍 Şu An Buradasınız (İtfaiye Paneli)'
                     }, {
                         preset: 'islands#redCircleDotIconWithCaption',
                         iconColor: '#b91c1c'
                     });
                     myMap.geoObjects.add(myLocationMarker);
-                    
-                    // Verileri mesafe hesaplamasıyla birlikte getir
                     verileriGetir();
                 }, error => {
-                    console.log("Konum izni reddedildi, merkez Seydişehir.");
                     verileriGetir();
                 });
             } else {
                 verileriGetir();
             }
 
-            // Doğrudan kütüphane üzerinden çalışan hata vermez adres sökücü
+            // Engellere takılmayan, açık kaynak resmi adres çözücü motor
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 const lat = coords[0].toFixed(6);
@@ -112,28 +105,51 @@
                 
                 document.getElementById('h-lat').value = lat;
                 document.getElementById('h-lng').value = lng;
-                document.getElementById('h-adres').value = "⏳ Yandex adresi çözümlüyor...";
+                document.getElementById('h-adres').value = "⏳ Mahalle ve sokak aranıyor...";
 
-                // Yandex'in yerleşik jeokod servisine koordinat dizisini gönderiyoruz
-                ymaps.geocode(coords).then(res => {
-                    const obj = res.geoObjects.get(0);
-                    if (obj) {
-                        const tamAdres = obj.getAddressLine();
+                // API Key kısıtlaması olmayan, doğrudan açık adres sunucusu
+                const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=tr`;
+
+                fetch(url, {
+                    headers: { 'User-Agent': 'SeydisehirItfaiyeApp/1.0' } // Sunucu engeline takılmamak için kimlik bildiriyoruz
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.address) {
+                        const a = data.address;
                         
-                        // Gereksiz ülke ve şehir tekrarlarını temizleyip mahalle, sokak bırakıyoruz
-                        let temizAdres = tamAdres
-                            .replace("Türkiye, ", "")
-                            .replace("Konya, ", "")
-                            .replace("Seydişehir, ", "")
+                        // Türkiye'deki mahalle ve sokak yapılandırmasını filtreliyoruz
+                        let mahalle = a.suburb || a.neighbourhood || a.quarter || a.village || "";
+                        let sokak = a.road || a.street || "";
+                        let kapiNo = a.house_number ? " No:" + a.house_number : "";
+
+                        // Yazıları düzenleyelim amirim
+                        if (mahalle && !mahalle.includes("Mah")) {
+                            mahalle = mahalle + " Mah.";
+                        }
+
+                        let sonAdres = "";
+                        if (mahalle && sokak) {
+                            sonAdres = `${mahalle}, ${sokak}${kapiNo}`;
+                        } else {
+                            sonAdres = sokak || mahalle || "Seydişehir";
+                        }
+
+                        // Gereksiz şehir tekrarlarını temizle
+                        sonAdres = sonAdres
+                            .replace(", Konya", "")
+                            .replace(", Seydişehir", "")
                             .replace("Seydişehir", "")
                             .trim();
 
-                        document.getElementById('h-adres').value = temizAdres ? temizAdres : "Adres Alındı.";
+                        document.getElementById('h-adres').value = sonAdres ? sonAdres : "Adres Alındı.";
                     } else {
-                        document.getElementById('h-adres').value = "Sokak detayı bulunamadı.";
+                        document.getElementById('h-adres').value = "Sokak adı bulunamadı.";
                     }
-                }).catch(err => {
-                    document.getElementById('h-adres').value = "Adres servisi yanıt vermedi.";
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('h-adres').value = "Bağlantı sınırlandı, tekrar tıklayın.";
                 });
             });
         });
@@ -162,7 +178,7 @@
                 const liste = document.getElementById('liste');
                 liste.innerHTML = "";
                 
-                // Mevcut konum işareti hariç diğer tüm eski hidrant işaretlerini temizle
+                // Sadece kendi kırmızı konum noktamızı haritada bırakıp diğer eski hidrant ikonlarını yeniliyoruz
                 myMap.geoObjects.each(geoObject => {
                     if (geoObject.options.get('preset') !== 'islands#redCircleDotIconWithCaption') {
                         myMap.geoObjects.remove(geoObject);
@@ -188,6 +204,7 @@
                     
                     const gösterilecekAdres = h.adres ? h.adres : "Adres bilgisi yok";
 
+                    // Google Maps link yapısı hatasız ve resmi protokole çekildi
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
