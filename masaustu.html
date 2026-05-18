@@ -7,6 +7,7 @@
     <link rel="shortcut icon" sizes="192x192" href="logo.jpg">
     <meta name="theme-color" content="#b91c1c">
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seydişehir İtfaiye - Yönetim Paneli</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://api-maps.yandex.ru/2.1/?lang=tr_TR" type="text/javascript"></script>
@@ -14,19 +15,28 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         body { background: #f8fafc; }
-        #map { height: 600px; width: 100%; border-radius: 12px; border: 4px solid #b91c1c; }
-        .sidebar { background: white; padding: 20px; border-radius: 12px; height: 600px; overflow-y: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        /* Harita yüksekliği masaüstünde ekranı rahat görmek için 550px yapıldı */
+        #map { height: 550px; width: 100%; border-radius: 12px; border: 4px solid #b91c1c; margin-bottom: 20px; }
+        .bottom-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .h-item { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.9rem; }
+        /* Listenin dikeyde çok uzamaması için kaydırma çubuğu eklendi */
+        #liste { max-height: 500px; overflow-y: auto; }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-danger mb-4 shadow"><div class="container-fluid"><span class="navbar-brand fw-bold">🚩 SEYDİŞEHİR İTFAİYE HİDRANT TAKİP</span></div></nav>
+    <nav class="navbar navbar-dark bg-danger mb-3 shadow"><div class="container-fluid"><span class="navbar-brand fw-bold">🚩 SEYDİŞEHİR İTFAİYE HİDRANT TAKİP</span></div></nav>
+    
     <div class="container-fluid">
         <div class="row">
-            <div class="col-md-3">
-                <div class="sidebar">
+            <div class="col-12">
+                <div id="map"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="bottom-panel">
                     <h5 class="text-danger fw-bold mb-3">Yeni Hidrant Ekle</h5>
-                    
                     <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki / Eski Sokak No (Örn: Alaylar 2, 14. Sokak No:5)">
                     
                     <select id="h-tip" class="form-select mb-2">
@@ -43,11 +53,15 @@
                     </div>
                     
                     <button class="btn btn-danger w-100 fw-bold" onclick="kaydet()">BULUTA KAYDET</button>
-                    <hr>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="bottom-panel">
+                    <h5 class="text-danger fw-bold mb-3">📍 Kayıtlı Hidrant Listesi (En Yakından Uzağa)</h5>
                     <div id="liste"></div>
                 </div>
             </div>
-            <div class="col-md-9"><div id="map"></div></div>
         </div>
     </div>
 
@@ -73,14 +87,13 @@
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
             
-            // Cihazın mevcut konumunu bulup kırmızı nokta koyar
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(position => {
                     userCoords = [position.coords.latitude, position.coords.longitude];
                     myMap.setCenter(userCoords, 15);
                     
                     var myLocationMarker = new ymaps.Placemark(userCoords, {
-                        balloonContent: '📍 Şu An Buradasınız'
+                        balloonContent: '📍 Masaüstü Komuta Konumu'
                     }, {
                         preset: 'islands#redCircleDotIconWithCaption',
                         iconColor: '#b91c1c'
@@ -94,7 +107,6 @@
                 verileriGetir();
             }
 
-            // Haritaya tıklandığında koordinatları alan fonksiyon
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 document.getElementById('h-lat').value = coords[0].toFixed(6);
@@ -124,7 +136,6 @@
                 const liste = document.getElementById('liste');
                 liste.innerHTML = "";
                 
-                // Haritadaki eski hidrant pinlerini temizle (Kullanıcı konumu hariç)
                 myMap.geoObjects.each(geoObject => {
                     if (geoObject.options.get('preset') !== 'islands#redCircleDotIconWithCaption') {
                         myMap.geoObjects.remove(geoObject);
@@ -153,7 +164,6 @@
                     });
                 });
 
-                // 🚀 OPERASYONEL GÜNCELLEME: En yakın hidrantı en üste getirmek için mesafeye göre sıralama
                 if (userCoords) {
                     hidrantlarDizisi.sort((a, b) => a.mesafe - b.mesafe);
                 }
@@ -170,7 +180,6 @@
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
 
-                    // 🛠️ GOOGLE MAPS VE YANDEX NAVİGASYON BINDING HATALARI DÜZELTİLDİ
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
@@ -190,7 +199,7 @@
                                     <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px; background:#007aff;">iOS<br><span style="font-size:7px; font-weight:normal;">(APPLE)</span></a>
                                 </div>
                                 <div class="col-4">
-                                    <a href="https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
+                                    <a href="http://maps.google.com/maps?q=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
                                 </div>
                             </div>
                         </div>`;
