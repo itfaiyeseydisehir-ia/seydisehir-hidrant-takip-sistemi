@@ -26,7 +26,7 @@
             <div class="col-md-3">
                 <div class="sidebar">
                     <h5 class="text-danger fw-bold mb-3">Yeni Hidrant Ekle</h5>
-                    <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki Adı (Örn: Park Girişi)">
+                    <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki Adı (Örn: İtfaiye Arkası)">
                     <select id="h-tip" class="form-select mb-2">
                         <option value="Yer Üstü">🟥 Yer Üstü Hidrant</option>
                         <option value="Yer Altı">🟦 Yer Altı Hidrant</option>
@@ -41,8 +41,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="text-dark small fw-bold mb-1">📍 Otomatik Adres (Yandex Güncel Veri)</label>
-                        <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Haritaya tıklayın..." style="background: #f8fafc; border: 1px dashed #cbd5e1;" readonly>
+                        <label class="text-dark small fw-bold mb-1">📍 Mahalle, Yeni Sokak Adı / No Giriniz:</label>
+                        <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Haritadaki yeni sokağı buraya yazın..." style="background: #fff5f5; border: 1px solid #b91c1c;">
                     </div>
                     
                     <button class="btn btn-danger w-100 fw-bold" onclick="kaydet()">BULUTA KAYDET</button>
@@ -70,20 +70,21 @@
         var userCoords = null; 
 
         ymaps.ready(() => {
+            // Seydişehir merkezli harita kurulumu. Zoom 16 yaptık ki sokak tabelaları ilk bakışta net gözüksün.
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
-                zoom: 14, 
+                zoom: 16, 
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
             
-            // Masaüstü konumunu bulup kırmızı işaret koyma
+            // Masaüstü bilgisayarın konumunu haritada kırmızı nokta olarak gösterme
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(position => {
                     userCoords = [position.coords.latitude, position.coords.longitude];
-                    myMap.setCenter(userCoords, 15);
+                    myMap.setCenter(userCoords, 16);
                     
                     var myLocationMarker = new ymaps.Placemark(userCoords, {
-                        balloonContent: '📍 Şu An Buradasınız'
+                        balloonContent: '📍 Şu An Buradasınız (İtfaiye Komuta Merkezi)'
                     }, {
                         preset: 'islands#redCircleDotIconWithCaption',
                         iconColor: '#b91c1c'
@@ -97,36 +98,14 @@
                 verileriGetir();
             }
 
-            // Yandex'in tarayıcı içi engellenemez dahili adres sökücüsü
+            // Haritaya tıklandığında koordinatı saniyeler içinde alan temiz fonksiyon
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
-                
                 document.getElementById('h-lat').value = coords[0].toFixed(6);
                 document.getElementById('h-lng').value = coords[1].toFixed(6);
-                document.getElementById('h-adres').value = "⏳ Yeni sokak numaraları çözülüyor...";
-
-                // Harici link çağırmıyoruz, haritanın kendi içindeki resmi fonksiyonu kullanıyoruz amirim
-                ymaps.geocode(coords, { results: 1 }).then(res => {
-                    const firstGeoObject = res.geoObjects.get(0);
-                    if (firstGeoObject) {
-                        const tamAdres = firstGeoObject.getAddressLine();
-                        
-                        // Gereksiz şehir tekrarlarını temizleyip doğrudan güncel mahalle ve yeni sokağı bırakıyoruz
-                        let temizAdres = tamAdres
-                            .replace("Türkiye, ", "")
-                            .replace("Konya, ", "")
-                            .replace("Seydişehir, ", "")
-                            .replace("Seydişehir", "")
-                            .trim();
-
-                        document.getElementById('h-adres').value = temizAdres ? temizAdres : "Mevkii Belirlendi";
-                    } else {
-                        document.getElementById('h-adres').value = "Adres detayı alınamadı.";
-                    }
-                }).catch(err => {
-                    console.error(err);
-                    document.getElementById('h-adres').value = "Yandex adresi okuyamadı.";
-                });
+                
+                // Tıklama bittiği an imleci otomatik olarak adres kutusuna odaklar
+                document.getElementById('h-adres').focus();
             });
         });
 
@@ -138,15 +117,14 @@
             const lng = document.getElementById('h-lng').value;
             const adres = document.getElementById('h-adres').value;
 
-            if(!ad || !lat) return alert("Lütfen isim ve konum seçin!");
+            if(!ad || !lat || !adres) return alert("Lütfen Mevki Adı, Konum Seçimi ve Yeni Adres Bilgisini Eksiksiz Girin!");
 
             await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, adres, tarih: Date.now() });
-            alert("Hidrant Buluta Kaydedildi!");
+            alert("Hidrant Başarıyla Kaydedildi!");
             document.getElementById('h-ad').value = "";
             document.getElementById('h-lat').value = "";
             document.getElementById('h-lng').value = "";
             document.getElementById('h-adres').value = "";
-            document.getElementById('h-adres').placeholder = "Haritaya tıklayın...";
         }
 
         function verileriGetir() {
@@ -154,7 +132,7 @@
                 const liste = document.getElementById('liste');
                 liste.innerHTML = "";
                 
-                // Sadece kırmızı konum noktamızı tutup haritayı temizliyoruz
+                // Sadece mevcut konumumuz olan kırmızı işaret haritada sabit kalır, diğerlerini tazeler
                 myMap.geoObjects.each(geoObject => {
                     if (geoObject.options.get('preset') !== 'islands#redCircleDotIconWithCaption') {
                         myMap.geoObjects.remove(geoObject);
@@ -178,9 +156,9 @@
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
                     
-                    const gösterilecekAdres = h.adres ? h.adres : "Adres bilgisi yok";
+                    const gösterilecekAdres = h.adres ? h.adres : "Adres belirtilmemiş";
 
-                    // Google Maps link yapısı tamamen kararlı hale getirildi
+                    // Google Maps link yapısı evrensel formata getirildi
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
@@ -209,7 +187,7 @@
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
                     let balonMetni = `<b>${h.ad}</b><br>📍 ${gösterilecekAdres}`;
 
-                    // ymarks hatası ymaps olarak düzeltildi, ikonlar artık eksiksiz basılacak
+                    // Buradaki ymarks hatası ymaps yapıldı, hidrant ikonları artık haritaya eksiksiz basılacak amirim
                     myMap.geoObjects.add(new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {balloonContent: balonMetni}, {preset: icon}));
                 });
             });
