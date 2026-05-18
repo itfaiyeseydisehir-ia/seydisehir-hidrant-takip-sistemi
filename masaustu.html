@@ -41,7 +41,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="text-dark small fw-bold mb-1">📍 Otomatik Adres Bilgisi</label>
+                        <label class="text-dark small fw-bold mb-1">📍 Otomatik Adres (Yandex Yeni Sokaklar)</label>
                         <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Haritaya tıklayın..." style="background: #f8fafc; border: 1px dashed #cbd5e1;" readonly>
                     </div>
                     
@@ -97,7 +97,7 @@
                 verileriGetir();
             }
 
-            // Engellere takılmayan, açık kaynak resmi adres çözücü motor
+            // Seydişehir'in yeni sokak numaralarını Yandex'in ana veritabanından söken havuz fonksiyonu
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 const lat = coords[0].toFixed(6);
@@ -105,51 +105,35 @@
                 
                 document.getElementById('h-lat').value = lat;
                 document.getElementById('h-lng').value = lng;
-                document.getElementById('h-adres').value = "⏳ Mahalle ve sokak aranıyor...";
+                document.getElementById('h-adres').value = "⏳ Güncel sokak bilgisi Yandex'ten alınıyor...";
 
-                // API Key kısıtlaması olmayan, doğrudan açık adres sunucusu
-                const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=tr`;
+                // API KEY gerektirmeyen, doğrudan Yandex'in açık web servis bacağı (Boylam, Enlem sırasıyla ister!)
+                const url = `https://geocode-maps.yandex.ru/1.x/?geocode=${lng},${lat}&format=json&lang=tr_TR&results=1`;
 
-                fetch(url, {
-                    headers: { 'User-Agent': 'SeydisehirItfaiyeApp/1.0' } // Sunucu engeline takılmamak için kimlik bildiriyoruz
-                })
+                fetch(url)
                 .then(res => res.json())
                 .then(data => {
-                    if (data && data.address) {
-                        const a = data.address;
+                    // Yandex'in en derin güncel adres ağacına ulaşıyoruz
+                    const featureMember = data.response.GeoObjectCollection.featureMember;
+                    if (featureMember && featureMember.length > 0) {
+                        const tamAdres = featureMember[0].GeoObject.metaDataProperty.GeocoderMetaData.Address.formatted;
                         
-                        // Türkiye'deki mahalle ve sokak yapılandırmasını filtreliyoruz
-                        let mahalle = a.suburb || a.neighbourhood || a.quarter || a.village || "";
-                        let sokak = a.road || a.street || "";
-                        let kapiNo = a.house_number ? " No:" + a.house_number : "";
-
-                        // Yazıları düzenleyelim amirim
-                        if (mahalle && !mahalle.includes("Mah")) {
-                            mahalle = mahalle + " Mah.";
-                        }
-
-                        let sonAdres = "";
-                        if (mahalle && sokak) {
-                            sonAdres = `${mahalle}, ${sokak}${kapiNo}`;
-                        } else {
-                            sonAdres = sokak || mahalle || "Seydişehir";
-                        }
-
-                        // Gereksiz şehir tekrarlarını temizle
-                        sonAdres = sonAdres
-                            .replace(", Konya", "")
-                            .replace(", Seydişehir", "")
+                        // "Türkiye, Konya, Seydişehir" gibi gereksiz kalabalığı temizleyip geriye sadece güncel mahalle ve yeni sokağı bırakıyoruz
+                        let temizAdres = tamAdres
+                            .replace("Türkiye, ", "")
+                            .replace("Konya, ", "")
+                            .replace("Seydişehir, ", "")
                             .replace("Seydişehir", "")
                             .trim();
 
-                        document.getElementById('h-adres').value = sonAdres ? sonAdres : "Adres Alındı.";
+                        document.getElementById('h-adres').value = temizAdres ? temizAdres : "Yeni Adres Alındı.";
                     } else {
-                        document.getElementById('h-adres').value = "Sokak adı bulunamadı.";
+                        document.getElementById('h-adres').value = "Yandex bu noktada sokak bulamadı.";
                     }
                 })
                 .catch(err => {
                     console.error(err);
-                    document.getElementById('h-adres').value = "Bağlantı sınırlandı, tekrar tıklayın.";
+                    document.getElementById('h-adres').value = "Bağlantı tıkandı, tekrar tıklayın.";
                 });
             });
         });
@@ -178,7 +162,6 @@
                 const liste = document.getElementById('liste');
                 liste.innerHTML = "";
                 
-                // Sadece kendi kırmızı konum noktamızı haritada bırakıp diğer eski hidrant ikonlarını yeniliyoruz
                 myMap.geoObjects.each(geoObject => {
                     if (geoObject.options.get('preset') !== 'islands#redCircleDotIconWithCaption') {
                         myMap.geoObjects.remove(geoObject);
@@ -204,7 +187,6 @@
                     
                     const gösterilecekAdres = h.adres ? h.adres : "Adres bilgisi yok";
 
-                    // Google Maps link yapısı hatasız ve resmi protokole çekildi
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
@@ -233,7 +215,7 @@
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
                     let balonMetni = `<b>${h.ad}</b><br>📍 ${gösterilecekAdres}`;
 
-                    myMap.geoObjects.add(new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {balloonContent: balonMetni}, {preset: icon}));
+                    myMap.geoObjects.add(new ymarks.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {balloonContent: balonMetni}, {preset: icon}));
                 });
             });
         }
