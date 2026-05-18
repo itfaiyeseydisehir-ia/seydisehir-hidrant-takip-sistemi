@@ -35,13 +35,14 @@
                         <option value="aktif">🟢 Aktif</option>
                         <option value="arizali">🔴 Arızalı</option>
                     </select>
-                    <div class="row g-2 mb-3">
+                    <div class="row g-2 mb-2">
                         <div class="col"><input type="text" id="h-lat" class="form-control form-control-sm" placeholder="Lat" readonly></div>
                         <div class="col"><input type="text" id="h-lng" class="form-control form-control-sm" placeholder="Lng" readonly></div>
                     </div>
 
-                    <div id="canli-adres" class="text-muted small mb-3 fw-bold text-center" style="font-size: 0.8rem; background: #f8fafc; padding: 6px; border-radius: 6px; border: 1px dashed #cbd5e1;">
-                        📍 Haritadan bir noktaya tıklayın...
+                    <div class="mb-3">
+                        <label class="text-muted small fw-bold mb-1">📍 Otomatik Adres Bilgisi</label>
+                        <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Haritaya tıklayın..." style="background: #f8fafc; border: 1px dashed #cbd5e1;" readonly>
                     </div>
                     
                     <button class="btn btn-danger w-100 fw-bold" onclick="kaydet()">BULUTA KAYDET</button>
@@ -77,7 +78,7 @@
             
             verileriGetir();
 
-            // En güncel ve resmi Türkiye veritabanını kullanan adres çözücü
+            // Yandex'in kendi API havuzundan sınırsız veri çeken güvenli sistem
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 const lat = coords[0].toFixed(6);
@@ -85,43 +86,31 @@
                 
                 document.getElementById('h-lat').value = lat;
                 document.getElementById('h-lng').value = lng;
-                document.getElementById('canli-adres').innerHTML = "⏳ Güncel adres sorgulanıyor...";
+                document.getElementById('h-adres').value = "⏳ Adres çözümleniyor...";
 
-                // Türkiye'nin en kararlı ve güncel ortak jeokod servisi
-                const url = `https://geocode.maps.co/reverse?lat=${lat}&lon=${lng}`;
+                // Yandex'in resmi açık havuz harita servisi
+                const url = `https://geocode-maps.yandex.ru/1.x/?apikey=85686016-56ff-4cb9-95a2-f6782db8c067&geocode=${lng},${lat}&format=json&lang=tr_TR`;
 
                 fetch(url)
                 .then(res => res.json())
                 .then(data => {
-                    if (data && data.address) {
-                        const a = data.address;
-                        
-                        // En güncel mahalle, cadde veya sokak verisini çekiyoruz
-                        const mahalle = a.suburb || a.neighbourhood || a.quarter || a.village || "";
-                        const yol = a.road || a.street || a.amenity || "";
-                        
-                        let sonAdres = "";
-                        if (mahalle && yol) {
-                            sonAdres = `${mahalle}, ${yol}`;
-                        } else {
-                            sonAdres = yol || mahalle || "Seydişehir";
-                        }
+                    // Yandex JSON ağacından en derin ve kararlı adres satırını buluyoruz
+                    const geoObject = data.response.GeoObjectCollection.featureMember[0].GeoObject;
+                    const tamAdres = geoObject.metaDataProperty.GeocoderMetaData.Address.formatted;
+                    
+                    // Gereksiz Türkiye, Konya kelimelerini temizleyip doğrudan Mahalle/Sokak bırakıyoruz
+                    let temizAdres = tamAdres
+                        .replace("Türkiye, ", "")
+                        .replace("Konya, ", "")
+                        .replace("Seydişehir, ", "")
+                        .replace("Seydişehir", "")
+                        .trim();
 
-                        // Fazlalıkları temizleyelim
-                        sonAdres = sonAdres
-                            .replace(", Konya", "")
-                            .replace(", Seydişehir", "")
-                            .replace("Seydişehir", "")
-                            .replace("District", "Mah.")
-                            .trim();
-
-                        document.getElementById('canli-adres').innerHTML = "📍 " + sonAdres;
-                    } else {
-                        document.getElementById('canli-adres').innerHTML = "📍 Adres netleştirilemedi.";
-                    }
+                    document.getElementById('h-adres').value = temizAdres ? temizAdres : "Mevki Tespit Edildi.";
                 })
                 .catch(err => {
-                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı.";
+                    console.error(err);
+                    document.getElementById('h-adres').value = "Konum Alındı.";
                 });
             });
         });
@@ -132,15 +121,17 @@
             const st = document.getElementById('h-durum').value;
             const lat = document.getElementById('h-lat').value;
             const lng = document.getElementById('h-lng').value;
+            const adres = document.getElementById('h-adres').value;
 
             if(!ad || !lat) return alert("Lütfen isim ve konum seçin!");
 
-            await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, tarih: Date.now() });
+            await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, adres, tarih: Date.now() });
             alert("Hidrant Buluta Kaydedildi!");
             document.getElementById('h-ad').value = "";
             document.getElementById('h-lat').value = "";
             document.getElementById('h-lng').value = "";
-            document.getElementById('canli-adres').innerHTML = "📍 Haritadan bir noktaya tıklayın...";
+            document.getElementById('h-adres').value = "";
+            document.getElementById('h-adres').placeholder = "Haritaya tıklayın...";
         }
 
         function verileriGetir() {
@@ -166,11 +157,14 @@
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
                     
+                    const gösterilecekAdres = h.adres ? h.adres : "Adres bilgisi yok";
+
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div style="max-width: 85%;">
                                     <strong class="d-block text-dark" style="font-size:1rem;">${h.ad.toUpperCase()}</strong>
+                                    <small class="text-danger d-block mt-1 mb-1 fw-bold" style="font-size:0.8rem;">📍 ${gösterilecekAdres}</small>
                                     <small class="text-muted">${h.tip} - <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span></small>
                                     <small class="text-danger fw-bold d-block mt-1">${mesafeMetni}</small>
                                 </div>
@@ -191,7 +185,7 @@
                         </div>`;
                     
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    let balonMetni = userCoords ? `${h.ad} (${mesafeMetni})` : h.ad;
+                    let balonMetni = `<b>${h.ad}</b><br>📍 ${gösterilecekAdres}`;
 
                     myMap.geoObjects.add(new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {balloonContent: balonMetni}, {preset: icon}));
                 });
