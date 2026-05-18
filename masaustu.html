@@ -41,7 +41,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="text-dark small fw-bold mb-1">📍 Mahalle, Eski Sokak No veya Mevki Tarifi:</label>
+                        <label class="text-dark small fw-bold mb-1">📍 Manuel Hidrant Ekle (Eski Sokak No / Tarif):</label>
                         <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Örn: Alaylar İki, 14. Sokak No:5" style="background: #fff5f5; border: 1px solid #b91c1c;">
                     </div>
                     
@@ -70,14 +70,12 @@
         var userCoords = null; 
 
         ymaps.ready(() => {
-            // Eski Yandex düzeninde haritayı açıyoruz
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
                 zoom: 15, 
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
             
-            // Bilgisayarın konumunu bulup haritaya o meşhur büyük kırmızı işareti koyuyoruz
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(position => {
                     userCoords = [position.coords.latitude, position.coords.longitude];
@@ -98,13 +96,10 @@
                 verileriGetir();
             }
 
-            // Haritaya tıklandığında koordinatları alan ve imleci direkt manuel adrese atan fonksiyon
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 document.getElementById('h-lat').value = coords[0].toFixed(6);
                 document.getElementById('h-lng').value = coords[1].toFixed(6);
-                
-                // Otomatik arama bitti, personel haritaya dokununca imleç direkt manuel yazma kutusuna zıplar
                 document.getElementById('h-adres').focus();
             });
         });
@@ -120,9 +115,8 @@
             if(!ad || !lat || !adres) return alert("Lütfen Mevki Adını, Haritadan Konumu ve Manuel Adres Tarifini Eksiksiz Girin amirim!");
 
             await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, adres, tarih: Date.now() });
-            alert("Hidrant Yazdığınız Manuel Adres Bilgisiyle Buluta Uçuruldu!");
+            alert("Hidrant Yazdığınız Manuel Bilgilerle Buluta Uçuruldu!");
             
-            // Formu temizle
             document.getElementById('h-ad').value = "";
             document.getElementById('h-lat').value = "";
             document.getElementById('h-lng').value = "";
@@ -134,7 +128,6 @@
                 const liste = document.getElementById('liste');
                 liste.innerHTML = "";
                 
-                // Sadece kendi bulunduğumuz yerin kırmızı işaretini haritada sabit tutuyoruz
                 myMap.geoObjects.each(geoObject => {
                     if (geoObject.options.get('preset') !== 'islands#redCircleDotIconWithCaption') {
                         myMap.geoObjects.remove(geoObject);
@@ -160,7 +153,7 @@
                     
                     const gösterilecekAdres = h.adres ? h.adres : "Adres belirtilmemiş";
 
-                    // Google Maps link yapısındaki tüm hatalar temizlendi
+                    // Google Maps yönlendirme hatası tamamen düzeltildi amirim
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
@@ -181,7 +174,7 @@
                                     <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px; background:#007aff;">iOS<br><span style="font-size:7px; font-weight:normal;">(APPLE)</span></a>
                                 </div>
                                 <div class="col-4">
-                                    <a href="https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
+                                    <a href="https://maps.google.com/?q=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
                                 </div>
                             </div>
                         </div>`;
@@ -189,7 +182,6 @@
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
                     let balonMetni = `<b>${h.ad}</b><br>📍 ${gösterilecekAdres}`;
 
-                    // Yandex damla ikonları haritaya eksiksiz basılıyor
                     myMap.geoObjects.add(new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {balloonContent: balonMetni}, {preset: icon}));
                 });
             });
