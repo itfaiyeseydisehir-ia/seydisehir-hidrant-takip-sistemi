@@ -26,7 +26,7 @@
             <div class="col-md-3">
                 <div class="sidebar">
                     <h5 class="text-danger fw-bold mb-3">Yeni Hidrant Ekle</h5>
-                    <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki Adı">
+                    <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki Adı (Örn: İtfaiye Arkası)">
                     <select id="h-tip" class="form-select mb-2">
                         <option value="Yer Üstü">🟥 Yer Üstü Hidrant</option>
                         <option value="Yer Altı">🟦 Yer Altı Hidrant</option>
@@ -41,8 +41,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="text-muted small fw-bold mb-1">📍 Otomatik Adres (Yandex Güncel Veri)</label>
-                        <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Haritaya tıklayın..." style="background: #f8fafc; border: 1px dashed #cbd5e1;" readonly>
+                        <label class="text-dark small fw-bold mb-1">📍 Mahalle, Yeni Sokak Adı / No giriniz:</label>
+                        <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Haritadan seçip buraya elle yazın..." style="background: #fff5f5; border: 1px solid #b91c1c;">
                     </div>
                     
                     <button class="btn btn-danger w-100 fw-bold" onclick="kaydet()">BULUTA KAYDET</button>
@@ -70,15 +70,16 @@
         var userCoords = null; 
 
         ymaps.ready(() => {
+            // Seydişehir merkezli haritayı kuruyoruz
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
-                zoom: 14, 
+                zoom: 16, // Sokak numaralarının haritada net görünmesi için zoom'u yaklaştırdım amirim
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
             
             verileriGetir();
 
-            // Harita üzerinde görünen yeni sokak numaralarını yakalayan doğrudan ters-jeokodlama fonksiyonu
+            // Sadece koordinat alan ve sistemi asla çökertmeyen temiz tıklama olayı
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 const lat = coords[0].toFixed(6);
@@ -86,29 +87,9 @@
                 
                 document.getElementById('h-lat').value = lat;
                 document.getElementById('h-lng').value = lng;
-                document.getElementById('h-adres').value = "⏳ Güncel Yandex adresi çözülüyor...";
-
-                // Yandex harita motorunun kendi veritabanındaki en güncel lokal katmanı sorguluyoruz
-                ymaps.geocode(coords, { kind: 'house', results: 1 }).then(res => {
-                    const firstGeoObject = res.geoObjects.get(0);
-                    if (firstGeoObject) {
-                        const tamAdres = firstGeoObject.getAddressLine();
-                        
-                        // Fazlalıkları uçurup sadece yeni Mahalle, Sokak ve Kapı No bilgisini bırakıyoruz
-                        let temizAdres = tamAdres
-                            .replace("Türkiye, ", "")
-                            .replace("Konya, ", "")
-                            .replace("Seydişehir, ", "")
-                            .replace("Seydişehir", "")
-                            .trim();
-
-                        document.getElementById('h-adres').value = temizAdres ? temizAdres : "Seydişehir (Yeni Numara Alındı)";
-                    } else {
-                        document.getElementById('h-adres').value = "Yeni adres katmanı boş döndü.";
-                    }
-                }).catch(err => {
-                    document.getElementById('h-adres').value = "Yandex adresi okuyamadı.";
-                });
+                
+                // Personeli kutuya odaklıyoruz
+                document.getElementById('h-adres').focus();
             });
         });
 
@@ -120,15 +101,16 @@
             const lng = document.getElementById('h-lng').value;
             const adres = document.getElementById('h-adres').value;
 
-            if(!ad || !lat) return alert("Lütfen isim ve konum seçin!");
+            if(!ad || !lat || !adres) return alert("Lütfen Mevki Adı, Haritadan Konum ve Adres Bilgisini girin!");
 
             await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, adres, tarih: Date.now() });
-            alert("Hidrant Buluta Kaydedildi!");
+            alert("Hidrant Başarıyla Kaydedildi!");
+            
+            // Kayıttan sonra kutuları temizle
             document.getElementById('h-ad').value = "";
             document.getElementById('h-lat').value = "";
             document.getElementById('h-lng').value = "";
             document.getElementById('h-adres').value = "";
-            document.getElementById('h-adres').placeholder = "Haritaya tıklayın...";
         }
 
         function verileriGetir() {
@@ -154,9 +136,9 @@
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
                     
-                    const gösterilecekAdres = h.adres ? h.adres : "Adres bilgisi yok";
+                    const gösterilecekAdres = h.adres ? h.adres : "Adres belirtilmemiş";
 
-                    // Google Maps buton linki düzeltildi: Google haritası eski numarada olsa bile, arama çubuğuna Seydişehir + yeni adresi yazarak açar.
+                    // Hatalı buton linkleri %100 çalışan resmi Google, Apple ve Yandex protokollerine çevrildi
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
