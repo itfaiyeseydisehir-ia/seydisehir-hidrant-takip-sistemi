@@ -26,7 +26,9 @@
             <div class="col-md-3">
                 <div class="sidebar">
                     <h5 class="text-danger fw-bold mb-3">Yeni Hidrant Ekle</h5>
-                    <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki Adı (Örn: Çarşı Karakol Arkası)">
+                    
+                    <input type="text" id="h-ad" class="form-control mb-2" placeholder="Mevki / Eski Sokak No (Örn: Alaylar 2, 14. Sokak No:5)">
+                    
                     <select id="h-tip" class="form-select mb-2">
                         <option value="Yer Üstü">🟥 Yer Üstü Hidrant</option>
                         <option value="Yer Altı">🟦 Yer Altı Hidrant</option>
@@ -35,14 +37,9 @@
                         <option value="aktif">🟢 Aktif</option>
                         <option value="arizali">🔴 Arızalı</option>
                     </select>
-                    <div class="row g-2 mb-2">
+                    <div class="row g-2 mb-3">
                         <div class="col"><input type="text" id="h-lat" class="form-control form-control-sm" placeholder="Lat" readonly></div>
                         <div class="col"><input type="text" id="h-lng" class="form-control form-control-sm" placeholder="Lng" readonly></div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="text-dark small fw-bold mb-1">📍 Manuel Hidrant Ekle (Eski Sokak No / Tarif):</label>
-                        <input type="text" id="h-adres" class="form-control form-control-sm fw-bold text-danger" placeholder="Örn: Alaylar İki, 14. Sokak No:5" style="background: #fff5f5; border: 1px solid #b91c1c;">
                     </div>
                     
                     <button class="btn btn-danger w-100 fw-bold" onclick="kaydet()">BULUTA KAYDET</button>
@@ -76,6 +73,7 @@
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
             
+            // Bilgisayarın mevcut konumunu bulup kırmızı nokta koyar
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(position => {
                     userCoords = [position.coords.latitude, position.coords.longitude];
@@ -96,11 +94,11 @@
                 verileriGetir();
             }
 
+            // Haritaya tıklandığında koordinatları alan fonksiyon
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 document.getElementById('h-lat').value = coords[0].toFixed(6);
                 document.getElementById('h-lng').value = coords[1].toFixed(6);
-                document.getElementById('h-adres').focus();
             });
         });
 
@@ -110,17 +108,16 @@
             const st = document.getElementById('h-durum').value;
             const lat = document.getElementById('h-lat').value;
             const lng = document.getElementById('h-lng').value;
-            const adres = document.getElementById('h-adres').value;
 
-            if(!ad || !lat || !adres) return alert("Lütfen Mevki Adını, Haritadan Konumu ve Manuel Adres Tarifini Eksiksiz Girin amirim!");
+            if(!ad || !lat) return alert("Lütfen Mevki/Sokak Bilgisini Yazın ve Haritadan Konum Seçin amirim!");
 
-            await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, adres, tarih: Date.now() });
-            alert("Hidrant Yazdığınız Manuel Bilgilerle Buluta Uçuruldu!");
+            // Eski adresi tamamen eledik, doğrudan girdiğin mevki adını kaydediyoruz
+            await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, tarih: Date.now() });
+            alert("Hidrant Bilgileri Başarıyla Buluta Kaydedildi!");
             
             document.getElementById('h-ad').value = "";
             document.getElementById('h-lat').value = "";
             document.getElementById('h-lng').value = "";
-            document.getElementById('h-adres').value = "";
         }
 
         function verileriGetir() {
@@ -150,18 +147,15 @@
                     } else {
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
-                    
-                    const gösterilecekAdres = h.adres ? h.adres : "Adres belirtilmemiş";
 
-                    // Google Maps yönlendirme hatası tamamen düzeltildi amirim
+                    // Google Maps resmi API standartlarına göre tamamen hatasız hale getirildi amirim
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div style="max-width: 85%;">
-                                    <strong class="d-block text-dark" style="font-size:1rem;">${h.ad.toUpperCase()}</strong>
-                                    <small class="text-danger d-block mt-1 mb-1 fw-bold" style="font-size:0.8rem;">📍 ${gösterilecekAdres}</small>
-                                    <small class="text-muted">${h.tip} - <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span></small>
-                                    <small class="text-danger fw-bold d-block mt-1">${mesafeMetni}</small>
+                                    <strong class="d-block text-danger" style="font-size:1rem;">📍 ${h.ad.toUpperCase()}</strong>
+                                    <small class="text-muted d-block mt-1">${h.tip} - <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span></small>
+                                    <small class="text-primary fw-bold d-block mt-1">${mesafeMetni}</small>
                                 </div>
                                 <button class="btn btn-sm btn-outline-danger border-0 p-0" onclick="sil('${doc.id}')" title="Sil" style="font-size:1.2rem;">🗑️</button>
                             </div>
@@ -174,13 +168,13 @@
                                     <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px; background:#007aff;">iOS<br><span style="font-size:7px; font-weight:normal;">(APPLE)</span></a>
                                 </div>
                                 <div class="col-4">
-                                    <a href="https://maps.google.com/?q=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
+                                    <a href="https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
                                 </div>
                             </div>
                         </div>`;
                     
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    let balonMetni = `<b>${h.ad}</b><br>📍 ${gösterilecekAdres}`;
+                    let balonMetni = `<b>📍 ${h.ad}</b><br>${h.tip}`;
 
                     myMap.geoObjects.add(new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {balloonContent: balonMetni}, {preset: icon}));
                 });
