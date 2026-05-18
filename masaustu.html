@@ -69,7 +69,7 @@
         var userCoords = null; 
 
         ymaps.ready(() => {
-            // Seydişehir merkez koordinatları yerine oturtuldu
+            // Seydişehir merkez koordinatları
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
                 zoom: 14, 
@@ -78,7 +78,7 @@
             
             verileriGetir();
 
-            // Tıklayınca koordinatı ve adresi çözen hatasız fonksiyon
+            // Sınırlamalara takılmayan HTTP Tabanlı Adres Çözücü
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 const lat = coords[0].toFixed(6);
@@ -88,23 +88,37 @@
                 document.getElementById('h-lng').value = lng;
                 document.getElementById('canli-adres').innerHTML = "⏳ Adres çözümleniyor...";
 
-                ymaps.geocode(coords).then(res => {
-                    const obj = res.geoObjects.get(0);
-                    if (obj) {
-                        const tamAdres = obj.getAddressLine();
-                        const temizAdres = tamAdres
-                            .replace("Türkiye, ", "")
-                            .replace("Konya, ", "")
-                            .replace("Seydişehir, ", "")
-                            .replace("Seydişehir", "")
-                            .trim();
+                // Yandex'in kütüphane engeline takılmamak için doğrudan genel API servisine tarayıcı üzerinden istek atıyoruz
+                const url = `https://geocode-maps.yandex.ru/1.x/?apikey=85686016-56ff-4cb9-95a2-f6782db8c067&geocode=${lng},${lat}&format=json&lang=tr_TR`;
 
-                        document.getElementById('canli-adres').innerHTML = "📍 " + (temizAdres ? temizAdres : "Adres tespit edildi.");
-                    } else {
-                        document.getElementById('canli-adres').innerHTML = "📍 Adres netleştirilemedi.";
+                fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    try {
+                        // Yandex JSON çıktısından adres satırını ayıklıyoruz
+                        const featureMember = data.response.GeoObjectCollection.featureMember;
+                        if (featureMember && featureMember.length > 0) {
+                            const tamAdres = featureMember[0].GeoObject.metaDataProperty.GeocoderMetaData.text;
+                            
+                            // Başındaki Türkiye, Konya, Seydişehir kalıplarını temizliyoruz
+                            const temizAdres = tamAdres
+                                .replace("Türkiye, ", "")
+                                .replace("Konya, ", "")
+                                .replace("Seydişehir, ", "")
+                                .replace("Seydişehir", "")
+                                .trim();
+
+                            document.getElementById('canli-adres').innerHTML = "📍 " + (temizAdres ? temizAdres : "Adres tespit edildi.");
+                        } else {
+                            document.getElementById('canli-adres').innerHTML = "📍 Adres netleştirilemedi.";
+                        }
+                    } catch (e) {
+                        document.getElementById('canli-adres').innerHTML = "📍 Adres formatı çözülemedi.";
                     }
-                }).catch(err => {
-                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı (Adres yoğun).";
+                })
+                .catch(err => {
+                    console.error("Adres hatası:", err);
+                    document.getElementById('canli-adres').innerHTML = "📍 Koordinat alındı (Adres servisi yanıt vermedi).";
                 });
             });
         });
