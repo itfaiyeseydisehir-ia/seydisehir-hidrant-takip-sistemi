@@ -70,7 +70,7 @@
         var userCoords = null; 
 
         ymaps.ready(() => {
-            // Seydişehir merkezli harita kurulumu. Zoom 16 yaptık ki sokak tabelaları ilk bakışta net gözüksün.
+            // Seydişehir merkezli harita kurulumu. Zoom 16 yapıldı ki sokak tabelaları net gözüksün.
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
                 zoom: 16, 
@@ -98,7 +98,7 @@
                 verileriGetir();
             }
 
-            // Haritaya tıklandığında koordinatı saniyeler içinde alan temiz fonksiyon
+            // Haritaya tıklandığında koordinatı alan temiz fonksiyon
             myMap.events.add('click', e => {
                 const coords = e.get('coords');
                 document.getElementById('h-lat').value = coords[0].toFixed(6);
@@ -187,7 +187,7 @@
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
                     let balonMetni = `<b>${h.ad}</b><br>📍 ${gösterilecekAdres}`;
 
-                    // Buradaki ymarks hatası ymaps yapıldı, hidrant ikonları artık haritaya eksiksiz basılacak amirim
+                    // Hidrant ikonları haritaya eksiksiz basılıyor
                     myMap.geoObjects.add(new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {balloonContent: balonMetni}, {preset: icon}));
                 });
             });
