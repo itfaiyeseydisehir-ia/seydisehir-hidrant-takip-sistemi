@@ -12,16 +12,17 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background: #b91c1c; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
-        .menu-card { background: white; padding: 30px 25px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 400px; }
+        .menu-card { background: white; padding: 30px 25px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 420px; }
         
-        /* 🚀 Resmin kare kenarlarını eritmek ve şeffaf görünmesini sağlamak için filtreler güçlendirildi */
+        /* 🚀 Yeni 3D Konya İtfaiyesi logolu görseli tam şeffaf gibi eriterek sığdıran alan */
         .hidrant-logo { 
             width: 100%; 
-            max-width: 220px; 
+            max-width: 320px; 
             height: auto; 
             margin-bottom: 15px; 
+            border-radius: 10px;
             mix-blend-mode: multiply; 
-            filter: contrast(115%) brightness(102%);
+            filter: contrast(112%) brightness(101%);
         }
         
         .btn-custom { width: 100%; padding: 15px; margin-bottom: 15px; font-weight: bold; border-radius: 12px; transition: 0.3s; text-decoration: none; display: block; }
@@ -29,12 +30,12 @@
         .btn-pc:hover { background: #334155; color: white; transform: translateY(-2px); }
         .btn-mobile { background: #fbbf24; color: black; }
         .btn-mobile:hover { background: #fcd34d; color: black; transform: translateY(-2px); }
-        .dinamik-baslik { font-size: calc(16px + 0.6vw); line-height: 1.3; color: #b91c1c; }
+        .dinamik-baslik { font-size: calc(15px + 0.6vw); line-height: 1.3; color: #b91c1c; letter-spacing: 0.5px; }
     </style>
 </head>
 <body>
     <div class="menu-card">
-        <img src="hidrant.jpg" alt="Seydişehir Itfaiye Hidrant" class="hidrant-logo">
+        <img src="hidrant.jpg" alt="Seydişehir İtfaiye Hidrant" class="hidrant-logo">
         
         <h2 class="mb-4 fw-bold dinamik-baslik">SEYDİŞEHİR İTFAİYESİ<br>HİDRANT TAKİP SİSTEMİ</h2>
         
