@@ -23,21 +23,14 @@
             max-width: 420px; 
         }
         
-        /* 🚀 GÜNCELLEME: Logoyu görünür kılan ve köşeleri temizleyen güvenli CSS */
+        /* 🚀 YENİ GÜNCELLEME: 3D Logoyu Kurumsal Bir Madalyon Gibi Gösteren CSS */
         .hidrant-logo { 
             width: 100%; 
-            max-width: 320px; 
+            max-width: 280px; /* Kartın içinde daha dengeli durması için hafif küçültüldü */
             height: auto; 
-            margin-bottom: 15px; 
-            
-            /* Tarayıcıların resmi tamamen kaybetmesini engellemek için sadece temel karıştırma modunu bıraktık */
-            mix-blend-mode: multiply; 
-
-            /* Resmin dışındaki o keskin gri köşe çizgilerini yuvarlayarak beyaz kartın içinde eritiyoruz */
-            border-radius: 50px;
-            padding: 5px;
-            
-            /* Donanım ivmesi ile pürüzsüzleştirme */
+            margin-bottom: 20px; 
+            border-radius: 15px; /* Görselin dış köşelerini kartın yuvarlaklığına uydurur */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); /* Logonun kendisine de hafif bir 3D derinlik katar */
             display: inline-block;
             vertical-align: middle;
         }
