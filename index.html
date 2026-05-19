@@ -2,25 +2,29 @@
 <html lang="tr">
 <head>
     <link rel="icon" type="image/jpeg" href="logo.jpg">
-<link rel="apple-touch-icon" href="logo.jpg">
-<meta name="mobile-web-app-capable" content="yes">
-<link rel="shortcut icon" sizes="192x192" href="logo.jpg">
-<meta name="theme-color" content="#b91c1c">
+    <link rel="apple-touch-icon" href="logo.jpg">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="shortcut icon" sizes="192x192" href="logo.jpg">
+    <meta name="theme-color" content="#b91c1c">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>İtfaiye Giriş Paneli</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #b91c1c; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; }
-        .menu-card { background: white; padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 400px; }
+        body { background: #b91c1c; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
+        .menu-card { background: white; padding: 40px 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 400px; }
         .btn-custom { width: 100%; padding: 15px; margin-bottom: 15px; font-weight: bold; border-radius: 12px; transition: 0.3s; text-decoration: none; display: block; }
         .btn-pc { background: #1e293b; color: white; }
+        .btn-pc:hover { background: #334155; color: white; transform: translateY(-2px); }
         .btn-mobile { background: #fbbf24; color: black; }
+        .btn-mobile:hover { background: #fcd34d; color: black; transform: translateY(-2px); }
+        /* 🚀 Ekrana göre otomatik ayarlanan, taşma yapmayan dinamik başlık boyutu */
+        .dinamik-baslik { font-size: calc(18px + 0.6vw); line-height: 1.3; }
     </style>
 </head>
 <body>
     <div class="menu-card">
-        <h2 class="text-danger mb-4">🚒 SEYDİŞEHİR İTFAİYESİ HİDRANT TAKİP SİSTEMİ</h2>
+        <h2 class="text-danger mb-4 fw-bold dinamik-baslik">🚒 SEYDİŞEHİR İTFAİYESİ HİDRANT TAKİP SİSTEMİ</h2>
         <p class="text-muted mb-4">Lütfen kullandığınız cihazı seçin:</p>
         <a href="masaustu.html" class="btn-custom btn-pc">💻 MASAÜSTÜ SÜRÜMÜ</a>
         <a href="mobil.html" class="btn-custom btn-mobile">📱 MOBİL SÜRÜM</a>
