@@ -12,16 +12,31 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background: #b91c1c; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
-        .menu-card { background: white; padding: 30px 25px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 420px; }
         
-        /* 🚀 GÜNCELLEME: Yeni şeffaf resmin renklerini bozmayan, pürüzsüz gösteren temiz alan */
+        .menu-card { 
+            background: white; 
+            padding: 30px 25px; 
+            border-radius: 20px; 
+            text-align: center; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+            width: 100%; 
+            max-width: 420px; 
+        }
+        
+        /* 🔥 GÜNCELLEME: Tam Şeffaflık İçin Yeni CSS */
         .hidrant-logo { 
             width: 100%; 
             max-width: 340px; 
             height: auto; 
             margin-bottom: 15px; 
-            /* Eski filtreler temizlendi, sadece şık bir hafif gölge bırakıldı */
-            filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.15)); 
+            
+            /* Arka planı temizlemek için 'multiply' ve 'brightness' karışımı */
+            mix-blend-mode: multiply; /* Siyahı korur, beyazı şeffaf yapar */
+            filter: brightness(1.1);   /* Gerekirse logonun canlılığını artırır */
+
+            /* Pürüzsüzleştirme ve kenar yumuşatma */
+            -webkit-font-smoothing: antialiased;
+            transform: translateZ(0); /* Donanım ivmelenmesi */
         }
         
         .btn-custom { width: 100%; padding: 15px; margin-bottom: 15px; font-weight: bold; border-radius: 12px; transition: 0.3s; text-decoration: none; display: block; }
