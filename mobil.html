@@ -15,17 +15,17 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         body { background: #f1f5f9; margin: 0; padding: 0; }
-        #map { height: 50vh; width: 100%; border-bottom: 4px solid #b91c1c; position: sticky; top: 0; z-index: 1000; }
-        .h-card { background: white; border-radius: 15px; padding: 15px; margin: 10px; border-left: 6px solid; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        /* 🚀 Telefon ekranında dikeyde sünmeyen, ideal yükseklikte yatay mobil harita alanı */
+        #map { height: 320px; width: 100%; border-bottom: 4px solid #b91c1c; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .h-card { background: white; border-radius: 15px; padding: 15px; margin: 10px; border-left: 6px solid; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
         .aktif { border-left-color: #198754; }
         .arizali { border-left-color: #dc3545; }
-        .btn-navi { background: #ffc107; color: black; font-weight: bold; width: 100%; border-radius: 10px; margin-top: 10px; padding: 12px; display: block; text-align: center; text-decoration: none; }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div class="container pb-5">
-        <h5 class="mt-3 text-center text-danger fw-bold">📍 CANLI HİDRANT HARİTASI</h5>
+        <h5 class="mt-3 text-center text-danger fw-bold">📍 YAKINDAKİ CANLI HİDRANTLAR</h5>
         <div id="liste-icerik"></div>
     </div>
 
@@ -42,37 +42,36 @@
         const db = firebase.firestore();
 
         var myMap;
-        var userCoords = null; // Personelin canlı konumunu saklayacağımız değişken
+        var userCoords = null; 
 
         ymaps.ready(() => {
             myMap = new ymaps.Map("map", { 
                 center: [37.4182, 31.8465], 
-                zoom: 14, 
+                zoom: 15, 
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
 
             if (navigator.geolocation) {
-                // watchPosition kullanarak personelin konumu değiştikçe mesafeleri canlı güncelliyoruz
+                // watchPosition ile personelin attığı her adımda konum ve mesafeler otomatik güncellenir
                 navigator.geolocation.watchPosition(pos => {
                     userCoords = [pos.coords.latitude, pos.coords.longitude];
                     
-                    // Önceki kullanıcı ikonunu temizle
+                    // Önceki kullanıcı konum ikonunu temizle
                     myMap.geoObjects.each(function (obj) {
                         if (obj.properties.get('id') === 'user') myMap.geoObjects.remove(obj);
                     });
 
-                    // Personelin olduğu yere canlı mavi halka koy
+                    // Personelin olduğu yere mavi renkli nokta / halka koy
                     const userMarker = new ymaps.Placemark(userCoords, {}, {
                         preset: 'islands#geolocationIcon'
                     });
                     userMarker.properties.set('id', 'user');
                     myMap.geoObjects.add(userMarker);
 
-                    // Konum her güncellendiğinde mesafeleri yeniden hesapla
                     verileriGetir();
                 }, error => {
                     console.log("Konum alınamadı:", error);
-                    verileriGetir(); // Konum alınamazsa da hidrantları listele
+                    verileriGetir(); 
                 }, { enableHighAccuracy: true });
             } else {
                 verileriGetir();
@@ -80,33 +79,58 @@
         });
 
         function verileriGetir() {
-            db.collection("hidrantlar").orderBy("tarih", "desc").onSnapshot(snapshot => {
+            // Canlı snapshot dinlemesi (onSnapshot)
+            db.collection("hidrantlar").onSnapshot(snapshot => {
                 const icerik = document.getElementById('liste-icerik');
                 icerik.innerHTML = "";
                 
+                // Haritadaki eski hidrant pinlerini temizle (Kullanıcı konumu hariç)
                 myMap.geoObjects.each(function (obj) {
                     if (obj.properties.get('id') === 'hidrant') myMap.geoObjects.remove(obj);
                 });
 
+                let hidrantlarDizisi = [];
+
                 snapshot.forEach(doc => {
-                    const h = doc.data();
-                    let mesafeMetni = "";
+                    const data = doc.data();
+                    let mesafeMetre = Infinity;
 
                     if (userCoords) {
-                        const hidrantCoords = [parseFloat(h.lat), parseFloat(h.lng)];
-                        const mesafeMetre = ymaps.coordSystem.geo.getDistance(userCoords, hidrantCoords);
-                        
-                        if (mesafeMetre < 1000) {
-                            mesafeMetni = `📏 ${Math.round(mesafeMetre)} m`;
+                        const hidrantCoords = [parseFloat(data.lat), parseFloat(data.lng)];
+                        mesafeMetre = ymaps.coordSystem.geo.getDistance(userCoords, hidrantCoords);
+                    }
+
+                    hidrantlarDizisi.push({
+                        ad: data.ad,
+                        tip: data.tip,
+                        st: data.st,
+                        lat: data.lat,
+                        lng: data.lng,
+                        mesafe: mesafeMetre
+                    });
+                });
+
+                // 🚀 ARTIK EN YAKIN HİDRANT EN ÜSTE GELECEK ŞEKİLDE SIRALANIYOR
+                if (userCoords) {
+                    hidrantlarDizisi.sort((a, b) => a.mesafe - b.mesafe);
+                }
+
+                hidrantlarDizisi.forEach(h => {
+                    let mesafeMetni = "";
+                    if (h.mesafe !== Infinity) {
+                        if (h.mesafe < 1000) {
+                            mesafeMetni = `📏 ${Math.round(h.mesafe)} m`;
                         } else {
-                            mesafeMetni = `📏 ${(mesafeMetre / 1000).toFixed(2)} km`;
+                            mesafeMetni = `📏 ${(h.mesafe / 1000).toFixed(2)} km`;
                         }
+                    } else {
+                        mesafeMetni = "📏 Konum bekleniyor...";
                     }
 
                     icerik.innerHTML += `
                     <div class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
                         <div class="d-flex justify-content-between align-items-center">
-                            <strong style="font-size:1.1rem;">${h.ad.toUpperCase()}</strong>
+                            <strong style="font-size:1.1rem;">📍 ${h.ad.toUpperCase()}</strong>
                             <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span>
                         </div>
                         <div class="mt-1 d-flex justify-content-between text-secondary" style="font-size: 0.9rem;">
@@ -116,21 +140,21 @@
                         
                         <div class="row g-1 mt-2">
                             <div class="col-4">
-                                <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn btn-warning btn-sm w-100 fw-bold pt-2 pb-2" style="font-size:10px; color:black;">YANDEX<br><span style="font-size:8px; font-weight:normal;">(Android)</span></a>
+                                <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn btn-warning btn-sm w-100 fw-bold pt-2 pb-2" style="font-size:10px; color:black;">YANDEX<br><span style="font-size:8px; font-weight:normal;">(Navi)</span></a>
                             </div>
                             <div class="col-4">
                                 <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px; background:#007aff;">iOS<br><span style="font-size:8px; font-weight:normal;">(APPLE)</span></a>
                             </div>
                             <div class="col-4">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px;">GOOGLE<br><span style="font-size:8px; font-weight:normal;">MAPS</span></a>
+                                <a href="https://maps.google.com/?q=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px;">GOOGLE<br><span style="font-size:8px; font-weight:normal;">MAPS</span></a>
                             </div>
                         </div>
                     </div>`;
                     
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    let balonMetni = userCoords ? `${h.ad} (${mesafeMetni})` : h.ad;
+                    let balonMetni = `<b>📍 ${h.ad}</b><br>${h.tip}<br>Mesafe: ${mesafeMetni}`;
                     
-                    let placemark = new ymaps.Placemark([h.lat, h.lng], {
+                    let placemark = new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {
                         balloonContent: balonMetni
                     }, {
                         preset: icon
