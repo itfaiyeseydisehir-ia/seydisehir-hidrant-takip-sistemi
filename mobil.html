@@ -16,7 +16,7 @@
     <style>
         body { background: #f1f5f9; margin: 0; padding: 0; }
         #map { height: 320px; width: 100%; border-bottom: 4px solid #b91c1c; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-        .h-card { background: white; border-radius: 15px; padding: 15px; margin: 10px; border-left: 6px solid; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        .h-card { background: white; border-radius: 15px; padding: 15px; margin: 10px; border-left: 6px solid; box-shadow: 0 4px 10px rgba(0,0,0,0.08); transition: background-color 0.5s ease; }
         .aktif { border-left-color: #198754; }
         .arizali { border-left-color: #dc3545; }
     </style>
@@ -110,19 +110,13 @@
                 }
 
                 hidrantlarDizisi.forEach(h => {
-                    let mesafeMetni = "";
-                    if (h.mesafe !== Infinity) {
-                        if (h.mesafe < 1000) {
-                            mesafeMetni = `📏 ${Math.round(h.mesafe)} m`;
-                        } else {
-                            mesafeMetni = `📏 ${(h.mesafe / 1000).toFixed(2)} km`;
-                        }
-                    } else {
-                        mesafeMetni = "📏 Konum bekleniyor...";
-                    }
+                    let mesafeMetni = (h.mesafe !== Infinity) ? (h.mesafe < 1000 ? `📏 ${Math.round(h.mesafe)} m` : `📏 ${(h.mesafe / 1000).toFixed(2)} km`) : "📏 Konum bekleniyor...";
+                    
+                    // Benzersiz ID oluşturucu
+                    const cardId = 'card-' + h.ad.replace(/[^a-zA-Z0-9]/g, '-');
 
                     icerik.innerHTML += `
-                    <div class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
+                    <div id="${cardId}" class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
                         <div class="d-flex justify-content-between align-items-center">
                             <strong style="font-size:1.1rem;">📍 ${h.ad.toUpperCase()}</strong>
                             <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span>
@@ -140,19 +134,26 @@
                                 <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px; background:#007aff;">iOS<br><span style="font-size:8px; font-weight:normal;">(APPLE)</span></a>
                             </div>
                             <div class="col-4">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px;">GOOGLE<br><span style="font-size:8px; font-weight:normal;">MAPS</span></a>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=$${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px;">GOOGLE<br><span style="font-size:8px; font-weight:normal;">MAPS</span></a>
                             </div>
                         </div>
                     </div>`;
                     
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    let balonMetni = `<b>📍 ${h.ad}</b><br>${h.tip}<br>Giriş: ${h.baglanti}<br>Mesafe: ${mesafeMetni}`;
-                    
                     let placemark = new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {
-                        balloonContent: balonMetni
-                    }, {
-                        preset: icon
+                        balloonContent: `<b>📍 ${h.ad}</b><br>${h.tip}<br>Giriş: ${h.baglanti}`
+                    }, { preset: icon });
+
+                    // Haritadaki noktaya tıklandığında ilgili karta git ve vurgula
+                    placemark.events.add('click', function () {
+                        const element = document.getElementById(cardId);
+                        if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            element.style.backgroundColor = "#fee2e2"; // Hafif kırmızı vurgu
+                            setTimeout(() => { element.style.backgroundColor = "white"; }, 1000);
+                        }
                     });
+
                     placemark.properties.set('id', 'hidrant');
                     myMap.geoObjects.add(placemark);
                 });
