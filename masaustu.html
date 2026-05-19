@@ -42,6 +42,13 @@
                         <option value="Yer Üstü">🟥 Yer Üstü Hidrant</option>
                         <option value="Yer Altı">🟦 Yer Altı Hidrant</option>
                     </select>
+
+                    <select id="h-baglanti" class="form-select mb-2">
+                        <option value='2.5" (B Tipi)'>⚙️ 2.5" (B Tipi Hortum Girişi)</option>
+                        <option value='4" (A Tipi)'>⚙️ 4" (A Tipi Dolum Girişi)</option>
+                        <option value='2" (C Tipi)'>⚙️ 2" (C Tipi Dar Giriş)</option>
+                    </select>
+
                     <select id="h-durum" class="form-select mb-2">
                         <option value="aktif">🟢 Aktif</option>
                         <option value="arizali">🔴 Arızalı</option>
@@ -81,8 +88,8 @@
         var myMap;
         var userCoords = null; 
         var clickMarker = null; 
-        var dunyaHidrantVerisi = []; // Güncelleme işlemi için verileri yerelde tutacak dizi
-        var editId = null; // O an düzenlenen hidrantın doküman ID'si
+        var dunyaHidrantVerisi = []; 
+        var editId = null; 
 
         ymaps.ready(() => {
             myMap = new ymaps.Map("map", { 
@@ -134,33 +141,32 @@
         async function kaydet() {
             const ad = document.getElementById('h-ad').value;
             const tip = document.getElementById('h-tip').value;
+            const baglanti = document.getElementById('h-baglanti').value;
             const st = document.getElementById('h-durum').value;
             const lat = document.getElementById('h-lat').value;
             const lng = document.getElementById('h-lng').value;
 
             if(!ad || !lat) return alert("Lütfen Adres Mevki Bilgisini Yazın ve Haritadan Konum Seçin amirim!");
 
-            await db.collection("hidrantlar").add({ ad, tip, st, lat, lng, tarih: Date.now() });
+            await db.collection("hidrantlar").add({ ad, tip, baglanti, st, lat, lng, tarih: Date.now() });
             alert("Hidrant Bilgileri Başarıyla Buluta Kaydedildi!");
             
             formuSifirla();
         }
 
-        // 🚀 YENİ ÖZELLİK: Kayıtlı Hidrantı Düzenleme Moduna Alan Fonksiyon
         function duzenleModunaAl(id) {
             const h = dunyaHidrantVerisi.find(item => item.id === id);
             if (!h) return;
 
-            editId = id; // Düzenlenecek ID sabitlendi
+            editId = id; 
             
-            // Verileri forma geri dolduruyoruz
             document.getElementById('h-ad').value = h.ad;
             document.getElementById('h-tip').value = h.tip;
+            document.getElementById('h-baglanti').value = h.baglanti || '2.5" (B Tipi)';
             document.getElementById('h-durum').value = h.st;
             document.getElementById('h-lat').value = h.lat;
             document.getElementById('h-lng').value = h.lng;
 
-            // Form başlığını ve butonunu güncelleme moduna çeviriyoruz
             document.getElementById('form-baslik').innerText = "✏️ Hidrantı Düzenle";
             document.getElementById('form-baslik').className = "text-primary fw-bold mb-3";
             
@@ -175,7 +181,6 @@
                 </div>
             `;
 
-            // Haritada o noktaya geçici sarı pini koy ki neresi olduğunu görsünler
             if (clickMarker) myMap.geoObjects.remove(clickMarker);
             clickMarker = new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {
                 balloonContent: '✏️ Düzenlenen Hidrant Konumu'
@@ -185,33 +190,32 @@
             });
             myMap.geoObjects.add(clickMarker);
             
-            // Sayfayı hafifçe yukarı form alanına kaydır (Mobilde kolaylık olsun diye)
             document.getElementById('form-baslik').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // 🚀 YENİ ÖZELLİK: Firebase Üzerinde Güncelleme Yapan Fonksiyon
         async function guncellele() {
             const ad = document.getElementById('h-ad').value;
             const tip = document.getElementById('h-tip').value;
+            const baglanti = document.getElementById('h-baglanti').value;
             const st = document.getElementById('h-durum').value;
             const lat = document.getElementById('h-lat').value;
             const lng = document.getElementById('h-lng').value;
 
             if(!ad || !lat) return alert("Adres/Mevki veya Konum boş bırakılamaz!");
 
-            await db.collection("hidrantlar").doc(editId).update({ ad, tip, st, lat, lng });
+            await db.collection("hidrantlar").doc(editId).update({ ad, tip, baglanti, st, lat, lng });
             alert("Hidrant Bilgileri Başarıyla Güncellendi!");
             
             formuSifirla();
         }
 
-        // Formu eski temiz haline getiren yardımcı fonksiyon
         function formuSifirla() {
             editId = null;
             document.getElementById('h-ad').value = "";
             document.getElementById('h-lat').value = "";
             document.getElementById('h-lng').value = "";
             document.getElementById('h-tip').selectedIndex = 0;
+            document.getElementById('h-baglanti').selectedIndex = 0;
             document.getElementById('h-durum').selectedIndex = 0;
             
             document.getElementById('form-baslik').innerText = "Yeni Hidrant Ekle";
@@ -250,6 +254,7 @@
                         id: doc.id,
                         ad: data.ad,
                         tip: data.tip,
+                        baglanti: data.baglanti || '2.5" (B Tipi)',
                         st: data.st,
                         lat: data.lat,
                         lng: data.lng,
@@ -273,13 +278,12 @@
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
 
-                    // 🚀 LİSTEYE "DÜZENLE (✏️)" BUTONU EKLENDİ VE ÇÖP KUTUSUNUN YANINA YERLEŞTİRİLDİ
                     liste.innerHTML += `
                         <div class="h-item p-3 border-bottom shadow-sm mb-2 bg-light rounded">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div style="max-width: 80%;">
                                     <strong class="d-block text-danger" style="font-size:1rem;">📍 ${h.ad.toUpperCase()}</strong>
-                                    <small class="text-muted d-block mt-1">${h.tip} - <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span></small>
+                                    <small class="text-muted d-block mt-1">${h.tip} / Bağlantı: <b>${h.baglanti}</b> - <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span></small>
                                     <small class="text-primary fw-bold d-block mt-1">${mesafeMetni}</small>
                                 </div>
                                 <div class="d-flex gap-2">
@@ -296,13 +300,13 @@
                                     <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px; background:#007aff;">iOS<br><span style="font-size:7px; font-weight:normal;">(APPLE)</span></a>
                                 </div>
                                 <div class="col-4">
-                                    <a href="http://maps.google.com/maps?q=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
+                                    <a href="https://maps.google.com/?q=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:9px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
                                 </div>
                             </div>
                         </div>`;
                     
                     let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    let balonMetni = `<b>📍 ${h.ad}</b><br>${h.tip}<br>Durum: ${h.st.toUpperCase()}`;
+                    let balonMetni = `<b>📍 ${h.ad}</b><br>${h.tip}<br>Bağlantı: ${h.baglanti}<br>Durum: ${h.st.toUpperCase()}`;
 
                     myMap.geoObjects.add(new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {balloonContent: balonMetni}, {preset: icon}));
                 });
@@ -315,7 +319,7 @@
                 if(confirm("Silmek istediğinize emin misiniz?")) {
                     await db.collection("hidrantlar").doc(id).delete();
                     alert("Kayıt başarıyla silindi.");
-                    if(editId === id) formuSifirla(); // Eğer o an düzenlenen öğe silindiyse formu temizle
+                    if(editId === id) formuSifirla();
                 }
             } else if (sifre !== null) {
                 alert("Hatalı şifre! Silme yetkiniz bulunmamaktadır.");
