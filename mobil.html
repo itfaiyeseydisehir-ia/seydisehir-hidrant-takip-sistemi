@@ -2,9 +2,6 @@
 <html lang="tr">
 <head>
     <link rel="icon" type="image/jpeg" href="logo.jpg">
-    <link rel="apple-touch-icon" href="logo.jpg">
-    <meta name="mobile-web-app-capable" content="yes">
-    <link rel="shortcut icon" sizes="192x192" href="logo.jpg">
     <meta name="theme-color" content="#b91c1c">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -15,7 +12,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         body { background: #f1f5f9; margin: 0; padding: 0; }
-        #map { height: 320px; width: 100%; border-bottom: 4px solid #b91c1c; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        #map { height: 320px; width: 100%; border-bottom: 4px solid #b91c1c; position: sticky; top: 0; z-index: 1000; }
         .h-card { background: white; border-radius: 15px; padding: 15px; margin: 10px; border-left: 6px solid; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
         .aktif { border-left-color: #198754; }
         .arizali { border-left-color: #dc3545; }
@@ -24,8 +21,27 @@
 <body>
     <div id="map"></div>
     <div class="container pb-5">
-        <h5 class="mt-3 text-center text-danger fw-bold">📍HİDRANTLAR CANLI KONUM EN YAKINDAN UZAĞA</h5>
+        <h5 class="mt-3 text-center text-danger fw-bold">📍HİDRANTLAR CANLI KONUM</h5>
         <div id="liste-icerik"></div>
+    </div>
+
+    <!-- Durum Güncelleme Modalı -->
+    <div class="modal fade" id="durumModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white"><h5 class="modal-title">Hidrant Durum Bildir</h5></div>
+                <div class="modal-body">
+                    <input type="hidden" id="seciliHidrantId">
+                    <select class="form-select mb-3" id="yeniDurum">
+                        <option value="aktif">✅ Çalışıyor</option>
+                        <option value="basinç_düşük">⚠️ Su Basıncı Düşük</option>
+                        <option value="su_yok">❌ Su Yok</option>
+                        <option value="arızalı">🔧 Fiziksel Hasar</option>
+                    </select>
+                    <button class="btn btn-danger w-100" onclick="durumGuncelle()">GÜNCELLE</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -39,125 +55,63 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-
-        var myMap;
-        var userCoords = null; 
+        var myMap, userCoords = null;
 
         ymaps.ready(() => {
-            myMap = new ymaps.Map("map", { 
-                center: [37.4182, 31.8465], 
-                zoom: 15, 
-                controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
-            });
-
+            myMap = new ymaps.Map("map", { center: [37.4182, 31.8465], zoom: 15 });
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition(pos => {
                     userCoords = [pos.coords.latitude, pos.coords.longitude];
-                    
-                    myMap.geoObjects.each(function (obj) {
-                        if (obj.properties.get('id') === 'user') myMap.geoObjects.remove(obj);
-                    });
-
-                    const userMarker = new ymaps.Placemark(userCoords, {}, {
-                        preset: 'islands#geolocationIcon'
-                    });
-                    userMarker.properties.set('id', 'user');
-                    myMap.geoObjects.add(userMarker);
-
                     verileriGetir();
-                }, error => {
-                    console.log("Konum alınamadı:", error);
-                    verileriGetir(); 
-                }, { enableHighAccuracy: true });
-            } else {
-                verileriGetir();
+                });
             }
+            verileriGetir();
         });
+
+        function modalAc(id) {
+            document.getElementById('seciliHidrantId').value = id;
+            new bootstrap.Modal(document.getElementById('durumModal')).show();
+        }
+
+        function durumGuncelle() {
+            const id = document.getElementById('seciliHidrantId').value;
+            const durum = document.getElementById('yeniDurum').value;
+            db.collection("hidrantlar").doc(id).update({ st: durum }).then(() => {
+                location.reload();
+            });
+        }
 
         function verileriGetir() {
             db.collection("hidrantlar").onSnapshot(snapshot => {
                 const icerik = document.getElementById('liste-icerik');
                 icerik.innerHTML = "";
-                
-                myMap.geoObjects.each(function (obj) {
-                    if (obj.properties.get('id') === 'hidrant') myMap.geoObjects.remove(obj);
-                });
-
-                let hidrantlarDizisi = [];
+                myMap.geoObjects.removeAll();
 
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    let mesafeMetre = Infinity;
+                    const hId = doc.id;
+                    
+                    // İkon Seçimi
+                    let icon = 'islands#greenWaterDropIcon';
+                    if (data.st === 'su_yok') icon = 'islands#redStretchyIcon'; // Yanıp sönen efektli kırmızı
+                    else if (data.st === 'arızalı' || data.st === 'basinç_düşük') icon = 'islands#yellowWaterDropIcon';
 
-                    if (userCoords) {
-                        const hidrantCoords = [parseFloat(data.lat), parseFloat(data.lng)];
-                        mesafeMetre = ymaps.coordSystem.geo.getDistance(userCoords, hidrantCoords);
-                    }
-
-                    hidrantlarDizisi.push({
-                        ad: data.ad,
-                        tip: data.tip,
-                        baglanti: data.baglanti || '2.5" (B Tipi)',
-                        st: data.st,
-                        lat: data.lat,
-                        lng: data.lng,
-                        mesafe: mesafeMetre
-                    });
-                });
-
-                if (userCoords) {
-                    hidrantlarDizisi.sort((a, b) => a.mesafe - b.mesafe);
-                }
-
-                hidrantlarDizisi.forEach(h => {
-                    let mesafeMetni = "";
-                    if (h.mesafe !== Infinity) {
-                        if (h.mesafe < 1000) {
-                            mesafeMetni = `📏 ${Math.round(h.mesafe)} m`;
-                        } else {
-                            mesafeMetni = `📏 ${(h.mesafe / 1000).toFixed(2)} km`;
-                        }
-                    } else {
-                        mesafeMetni = "📏 Konum bekleniyor...";
-                    }
+                    let placemark = new ymaps.Placemark([parseFloat(data.lat), parseFloat(data.lng)], {
+                        balloonContent: `<b>${data.ad}</b><br>Durum: ${data.st}`
+                    }, { preset: icon });
+                    myMap.geoObjects.add(placemark);
 
                     icerik.innerHTML += `
-                    <div class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <strong style="font-size:1.1rem;">📍 ${h.ad.toUpperCase()}</strong>
-                            <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span>
+                    <div class="h-card ${data.st=='aktif'?'aktif':'arizali'}">
+                        <div class="d-flex justify-content-between"><strong>${data.ad.toUpperCase()}</strong>
+                            <span class="badge ${data.st=='aktif'?'bg-success':'bg-danger'}">${data.st.toUpperCase()}</span>
                         </div>
-                        <div class="mt-1 d-flex justify-content-between text-secondary" style="font-size: 0.9rem;">
-                            <span>${h.tip} / <b>${h.baglanti}</b></span>
-                            <span class="text-danger fw-bold">${mesafeMetni}</span>
-                        </div>
-                        
-                        <div class="row g-1 mt-2">
-                            <div class="col-4">
-                                <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn btn-warning btn-sm w-100 fw-bold pt-2 pb-2" style="font-size:10px; color:black;">YANDEX<br><span style="font-size:8px; font-weight:normal;">(Navi)</span></a>
-                            </div>
-                            <div class="col-4">
-                                <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px; background:#007aff;">iOS<br><span style="font-size:8px; font-weight:normal;">(APPLE)</span></a>
-                            </div>
-                            <div class="col-4">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px;">GOOGLE<br><span style="font-size:8px; font-weight:normal;">MAPS</span></a>
-                            </div>
-                        </div>
+                        <button class="btn btn-outline-danger btn-sm w-100 mt-2" onclick="modalAc('${hId}')">⚠️ DURUM BİLDİR</button>
                     </div>`;
-                    
-                    let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    let balonMetni = `<b>📍 ${h.ad}</b><br>${h.tip}<br>Giriş: ${h.baglanti}<br>Mesafe: ${mesafeMetni}`;
-                    
-                    let placemark = new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {
-                        balloonContent: balonMetni
-                    }, {
-                        preset: icon
-                    });
-                    placemark.properties.set('id', 'hidrant');
-                    myMap.geoObjects.add(placemark);
                 });
             });
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
