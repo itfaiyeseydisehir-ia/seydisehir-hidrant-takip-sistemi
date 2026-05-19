@@ -23,20 +23,20 @@
             max-width: 420px; 
         }
         
-        /* 🔥 GÜNCELLEME: Tam Şeffaflık İçin Yeni CSS */
+        /* 🚀 GÜNCELLEME: Gerçek Transparan PNG İçin Pürüzsüz CSS */
         .hidrant-logo { 
             width: 100%; 
             max-width: 340px; 
             height: auto; 
             margin-bottom: 15px; 
             
-            /* Arka planı temizlemek için 'multiply' ve 'brightness' karışımı */
-            mix-blend-mode: multiply; /* Siyahı korur, beyazı şeffaf yapar */
-            filter: brightness(1.1);   /* Gerekirse logonun canlılığını artırır */
+            /* Eski renk bozan filtreler ve mix-blend modları tamamen kaldırıldı */
+            /* Logoya derinlik katmak için sadece şık ve yumuşak bir şeffaf gölge bırakıldı */
+            filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.12)); 
 
-            /* Pürüzsüzleştirme ve kenar yumuşatma */
-            -webkit-font-smoothing: antialiased;
-            transform: translateZ(0); /* Donanım ivmelenmesi */
+            /* Mobil ve masaüstü ekranlarda kenarların tırtıklı/piksel görünmesini engeller */
+            image-rendering: -webkit-optimize-contrast;
+            transform: translateZ(0);
         }
         
         .btn-custom { width: 100%; padding: 15px; margin-bottom: 15px; font-weight: bold; border-radius: 12px; transition: 0.3s; text-decoration: none; display: block; }
@@ -49,7 +49,7 @@
 </head>
 <body>
     <div class="menu-card">
-        <img src="hidrant.jpg" alt="Seydişehir İtfaiye Hidrant" class="hidrant-logo">
+        <img src="hidrant.png" alt="Seydişehir İtfaiye Hidrant" class="hidrant-logo">
         
         <h2 class="mb-4 fw-bold dinamik-baslik">SEYDİŞEHİR İTFAİYESİ<br>HİDRANT TAKİP SİSTEMİ</h2>
         
