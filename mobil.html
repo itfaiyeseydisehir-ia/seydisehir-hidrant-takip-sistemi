@@ -97,7 +97,7 @@
                     hidrantlarDizisi.push({
                         ad: data.ad,
                         tip: data.tip,
-                        baglanti: data.baglanti || '2.5" (B Tipi)', // 🚀 Eski kayıtlar için varsayılan B tipi
+                        baglanti: data.baglanti || '2.5" (B Tipi)',
                         st: data.st,
                         lat: data.lat,
                         lng: data.lng,
@@ -121,7 +121,6 @@
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
 
-                    // 🚀 MOBİL KARTA BAĞLANTI TİPİ VERİSİ EKLENDİ
                     icerik.innerHTML += `
                     <div class="h-card ${h.st=='aktif'?'aktif':'arizali'}">
                         <div class="d-flex justify-content-between align-items-center">
@@ -141,7 +140,7 @@
                                 <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px; background:#007aff;">iOS<br><span style="font-size:8px; font-weight:normal;">(APPLE)</span></a>
                             </div>
                             <div class="col-4">
-                                <a href="https://maps.google.com/?q=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px;">GOOGLE<br><span style="font-size:8px; font-weight:normal;">MAPS</span></a>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px;">GOOGLE<br><span style="font-size:8px; font-weight:normal;">MAPS</span></a>
                             </div>
                         </div>
                     </div>`;
