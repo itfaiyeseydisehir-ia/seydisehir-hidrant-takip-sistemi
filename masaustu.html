@@ -20,7 +20,7 @@
         .h-item { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.9rem; }
         #liste { max-height: 500px; overflow-y: auto; }
 
-        /* Haritada Arızalı/Sorunlu Hidrantların Yanıp Sönme (Blink) Animasyonu */
+        /* Haritada Sorunlu Hidrantların Canlı Yanıp Sönme (Blink) Animasyonu */
         @keyframes yandis_son {
             0% { opacity: 1.0; transform: scale(1); }
             50% { opacity: 0.3; transform: scale(1.2); }
@@ -28,6 +28,25 @@
         }
         .ariza-blink {
             animation: yandis_son 1.2s infinite ease-in-out;
+        }
+
+        /* İri ve Belirgin Durum Bildir Butonu Stili */
+        .btn-durum-bildir {
+            background: #1e293b !important;
+            color: #ffffff !important;
+            font-size: 13px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.5px;
+            padding: 12px 10px !important;
+            border-radius: 8px !important;
+            border: none !important;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15) !important;
+        }
+        .btn-durum-bildir:hover {
+            background: #0f172a !important;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.25) !important;
+            transform: translateY(-1px);
         }
     </style>
 </head>
@@ -65,10 +84,6 @@
                         <option value='2" (C Tipi)'>⚙️ 2" (C Tipi Dar Giriş)</option>
                     </select>
 
-                    <select id="h-durum" class="form-select mb-2">
-                        <option value="aktif">🟢 Aktif</option>
-                        <option value="arizali">🔴 Arızalı</option>
-                    </select>
                     <div class="row g-2 mb-3">
                         <div class="col"><input type="text" id="h-lat" class="form-control form-control-sm" placeholder="Lat" readonly></div>
                         <div class="col"><input type="text" id="h-lng" class="form-control form-control-sm" placeholder="Lng" readonly></div>
@@ -184,14 +199,13 @@
             const ad = document.getElementById('h-ad').value;
             const tip = document.getElementById('h-tip').value;
             const baglanti = document.getElementById('h-baglanti').value;
-            const st = document.getElementById('h-durum').value;
             const lat = document.getElementById('h-lat').value;
             const lng = document.getElementById('h-lng').value;
 
             if(!ad || !lat) return alert("Lütfen Adres/Mevki Bilgisini Yazın ve Haritadan Konum Seçin amirim!");
 
-            // Yeni kayıtlarda varsayılan çalışma durumu "Çalışıyor" olarak başlar
-            await db.collection("hidrantlar").add({ ad, tip, baglanti, st, lat, lng, calismaDurumu: "Çalışıyor", tarih: Date.now() });
+            // Yeni kayıtlarda durum otomatik olarak en sağlıklı mod olan "Çalışıyor" başlar
+            await db.collection("hidrantlar").add({ ad, tip, baglanti, lat, lng, calismaDurumu: "Çalışıyor", tarih: Date.now() });
             alert("Hidrant Bilgileri Başarıyla Buluta Kaydedildi!");
             
             formuSifirla();
@@ -206,7 +220,6 @@
             document.getElementById('h-ad').value = h.ad;
             document.getElementById('h-tip').value = h.tip;
             document.getElementById('h-baglanti').value = h.baglanti || '2.5" (B Tipi)';
-            document.getElementById('h-durum').value = h.st;
             document.getElementById('h-lat').value = h.lat;
             document.getElementById('h-lng').value = h.lng;
 
@@ -240,13 +253,12 @@
             const ad = document.getElementById('h-ad').value;
             const tip = document.getElementById('h-tip').value;
             const baglanti = document.getElementById('h-baglanti').value;
-            const st = document.getElementById('h-durum').value;
             const lat = document.getElementById('h-lat').value;
             const lng = document.getElementById('h-lng').value;
 
             if(!ad || !lat) return alert("Adres/Mevki veya Konum boş bırakılamaz!");
 
-            await db.collection("hidrantlar").doc(editId).update({ ad, tip, baglanti, st, lat, lng });
+            await db.collection("hidrantlar").doc(editId).update({ ad, tip, baglanti, lat, lng });
             alert("Hidrant Bilgileri Başarıyla Güncellendi!");
             
             formuSifirla();
@@ -273,7 +285,6 @@
             document.getElementById('h-lng').value = "";
             document.getElementById('h-tip').selectedIndex = 0;
             document.getElementById('h-baglanti').selectedIndex = 0;
-            document.getElementById('h-durum').selectedIndex = 0;
             
             document.getElementById('form-baslik').innerText = "Yeni Hidrant Ekle";
             document.getElementById('form-baslik').className = "text-danger fw-bold mb-3";
@@ -312,7 +323,6 @@
                         ad: data.ad,
                         tip: data.tip,
                         baglanti: data.baglanti || '2.5" (B Tipi)',
-                        st: data.st,
                         lat: data.lat,
                         lng: data.lng,
                         calismaDurumu: data.calismaDurumu || "Çalışıyor",
@@ -336,7 +346,6 @@
                         mesafeMetni = "📏 Konum bekleniyor...";
                     }
 
-                    // Performans durumuna göre etiket rengi belirleme
                     let durumBadge = "bg-success";
                     if (h.calismaDurumu === "Su Basıncı Düşük") durumBadge = "bg-warning text-dark";
                     if (h.calismaDurumu === "Su Yok") durumBadge = "bg-danger";
@@ -348,8 +357,7 @@
                                 <div style="max-width: 80%;">
                                     <strong class="d-block text-danger" style="font-size:1rem;">📍 ${h.ad.toUpperCase()}</strong>
                                     <small class="text-muted d-block mt-1">
-                                        ${h.tip} / Bağlantı: <b>${h.baglanti}</b> - 
-                                        <span class="badge ${h.st=='aktif'?'bg-success':'bg-danger'}">${h.st.toUpperCase()}</span>
+                                        ${h.tip} / Bağlantı: <b>${h.baglanti}</b>
                                     </small>
                                     <div class="mt-1">
                                         <span class="badge ${durumBadge}" style="font-size: 0.75rem;">⚡ Durum: ${h.calismaDurumu.toUpperCase()}</span>
@@ -376,31 +384,23 @@
 
                             <div class="row mt-2">
                                 <div class="col-12">
-                                    <button class="btn btn-dark btn-sm w-100 fw-bold text-white shadow-sm" onclick="modalAc('${h.id}')" style="font-size: 11px; background: #2d3748;">⚠️ SAHADAN DURUM BİLDİR / DEĞİŞTİR</button>
+                                    <button class="btn btn-durum-bildir w-100 shadow" onclick="modalAc('${h.id}')">⚠️ SAHADAN DURUM BİLDİR / DEĞİŞTİR</button>
                                 </div>
                             </div>
                         </div>`;
                     
-                    // Haritada Gösterim Mantığı: Sorun varsa simge KIRMIZI olur ve YANIP SÖNER (Blink)
                     let iconPreset = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
                     
-                    // Eğer "Çalışıyor" dışında bir arıza bildirildiyse zorunlu olarak kırmızı alarm pinine döner
                     if (h.calismaDurumu !== "Çalışıyor") {
-                        iconPreset = 'islands#redAttentionIcon'; // Dikkat çekici kırmızı ünlemli itfaiye pini
+                        iconPreset = 'islands#redAttentionIcon'; 
                     }
 
                     let balonMetni = `<b>📍 ${h.ad}</b><br>${h.tip}<br>Bağlantı: ${h.baglanti}<br>🚨 <b>SAHA DURUMU: ${h.calismaDurumu}</b>`;
-
                     let placemark = new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {balloonContent: balonMetni}, {preset: iconPreset});
                     
                     myMap.geoObjects.add(placemark);
 
-                    // Eğer arıza varsa Yandex DOM katmanına CSS animasyon sınıfımızı enjekte ediyoruz amirim!
                     if (h.calismaDurumu !== "Çalışıyor") {
-                        placemark.events.add('optionschange', function () {
-                            // İkonun render edilmesini beklemek için küçük tetikleyici
-                        });
-                        // Haritada yüklendiği an HTML elementine erişip canlı yanıp sönme sınıfı ekliyoruz
                         setTimeout(() => {
                             const overlay = placemark.getOverlay();
                             if (overlay) {
