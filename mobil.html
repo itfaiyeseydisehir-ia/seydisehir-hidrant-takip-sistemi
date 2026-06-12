@@ -20,18 +20,41 @@
     <style>
         body { background: #f1f5f9; margin: 0; padding: 0; }
         
-        /* Harita ve Tam Ekran Stilleri */
         #map-container { position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border-bottom: 4px solid #b91c1c; }
         #map { height: 320px; width: 100%; transition: height 0.3s ease-in-out; }
         .map-fullscreen { height: 100vh !important; border-bottom: none !important; }
         
-        /* Tam Ekran Butonu */
-        #btn-fullscreen { position: absolute; bottom: 15px; right: 15px; z-index: 1001; border-radius: 50%; width: 45px; height: 45px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+        /* Tam Ekran Butonu - Geliştirilmiş Görünüm */
+        #btn-fullscreen { 
+            position: absolute; 
+            bottom: 20px; 
+            right: 15px; 
+            z-index: 9999; 
+            border-radius: 50%; 
+            width: 55px; 
+            height: 55px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5); 
+            background-color: #b91c1c; 
+            color: white;
+            border: 3px solid white; /* Harita üzerinde kaybolmaması için kalın beyaz çerçeve */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
 
-        /* Yükleme Ekranı Stili */
+        /* Tam Ekran Aktifken Butonun Konumu ve Rengi */
+        .btn-fullscreen-active {
+            position: fixed !important;
+            bottom: 60px !important; /* Telefon navigasyon barlarından kurtarmak için yukarı alındı */
+            right: 20px !important;
+            background-color: #1e293b !important; /* Çıkış yaparken farklı renk (Koyu Lacivert) */
+            transform: scale(1.1); /* Tıklanabilirliği artırmak için biraz büyür */
+        }
+
         #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-
-        /* Kart Stilleri */
         .h-card { background: white; border-radius: 15px; padding: 15px; margin: 10px 0; border-left: 6px solid; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
         .durum-calisiyor { border-left-color: #198754; }
         .durum-dusuk { border-left-color: #ffc107; }
@@ -43,18 +66,11 @@
             letter-spacing: 0.5px; padding: 12px 10px !important; border-radius: 8px !important; border: none !important; box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12) !important;
         }
 
-        /* Navigasyon Butonları İçi İkon Hizalaması */
         .nav-btn { font-size: 10px; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; }
         .nav-btn i { font-size: 16px; margin-bottom: 3px; }
 
-        @keyframes yandis_son {
-            0% { opacity: 1.0; transform: scale(1); }
-            50% { opacity: 0.3; transform: scale(1.2); }
-            100% { opacity: 1.0; transform: scale(1); }
-        }
+        @keyframes yandis_son { 0% { opacity: 1.0; transform: scale(1); } 50% { opacity: 0.3; transform: scale(1.2); } 100% { opacity: 1.0; transform: scale(1); } }
         .ariza-blink { animation: yandis_son 1.2s infinite ease-in-out; }
-        
-        /* Filtre Butonları Aktif Durumu */
         .filter-btn.active { background-color: #b91c1c; color: white; border-color: #b91c1c; }
     </style>
 </head>
@@ -68,13 +84,12 @@
 
     <div id="map-container">
         <div id="map"></div>
-        <button id="btn-fullscreen" class="btn btn-dark" onclick="toggleFullScreenMap()">
+        <button id="btn-fullscreen" onclick="toggleFullScreenMap()">
             <i class="fa-solid fa-expand" id="fullscreen-icon"></i>
         </button>
     </div>
 
     <div class="container pb-5">
-        
         <div class="row g-2 mt-3 mb-3">
             <div class="col-12">
                 <div class="input-group shadow-sm">
@@ -117,7 +132,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // Firebase Konfigürasyonu
         const firebaseConfig = {
             apiKey: "AIzaSyBW7ZKG_Tl_RQNBYqObQLNWaikklaZver4",
             authDomain: "seydisehir-hidrant-takip.firebaseapp.com",
@@ -132,11 +146,10 @@
         let myMap;
         let userCoords = null; 
         let bootstrapModal;
-        let tumHidrantlar = []; // Tüm veriyi hafızada tutacağız
-        let aktifFiltreDurum = 'tümü'; // 'tümü', 'Çalışıyor', 'arizali'
+        let tumHidrantlar = []; 
+        let aktifFiltreDurum = 'tümü'; 
         let ilkYukleme = true;
 
-        // Yandex Haritalar Yüklemesi
         ymaps.ready(() => {
             bootstrapModal = new bootstrap.Modal(document.getElementById('durumModal'));
 
@@ -146,7 +159,6 @@
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
 
-            // Konum Servisini Başlat
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition(pos => {
                     userCoords = [pos.coords.latitude, pos.coords.longitude];
@@ -169,7 +181,6 @@
             }
         });
 
-        // Veritabanı Dinleyici
         function verileriGetir() {
             db.collection("hidrantlar").onSnapshot(snapshot => {
                 tumHidrantlar = [];
@@ -199,21 +210,18 @@
                     tumHidrantlar.sort((a, b) => a.mesafe - b.mesafe);
                 }
 
-                // Veriler geldiğinde yükleme ekranını kaldır (sadece ilk açılışta)
                 if (ilkYukleme) {
                     document.getElementById('loadingOverlay').style.display = 'none';
                     ilkYukleme = false;
                 }
 
-                filtreGuncelle(); // Ekrana çiz
+                filtreGuncelle(); 
             });
         }
 
-        // Filtreleme Butonu Yönetimi
         function durumFiltrele(durum) {
             aktifFiltreDurum = durum;
             
-            // Buton aktiflik sınıflarını ayarla
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
             if(durum === 'tümü') document.getElementById('filtre-tumu').classList.add('active');
             if(durum === 'Çalışıyor') document.getElementById('filtre-calisiyor').classList.add('active');
@@ -222,13 +230,11 @@
             filtreGuncelle();
         }
 
-        // Filtre ve Arama Sonuçlarını Harita ve Listeye Yansıtma
         function filtreGuncelle() {
             const aramaMetni = document.getElementById('aramaInput').value.toLowerCase();
             const icerik = document.getElementById('liste-icerik');
             icerik.innerHTML = "";
             
-            // Haritadaki eski hidrantları temizle (kullanıcı konumu hariç)
             myMap.geoObjects.each(function (obj) {
                 if (obj.properties.get('id') === 'hidrant') myMap.geoObjects.remove(obj);
             });
@@ -236,28 +242,23 @@
             let gosterilenSayi = 0;
 
             tumHidrantlar.forEach(h => {
-                // Arama Kontrolü
                 if (aramaMetni && !h.ad.toLowerCase().includes(aramaMetni)) return;
 
-                // Durum Kontrolü
                 if (aktifFiltreDurum === 'Çalışıyor' && h.calismaDurumu !== 'Çalışıyor') return;
                 if (aktifFiltreDurum === 'arizali' && h.calismaDurumu === 'Çalışıyor') return;
 
                 gosterilenSayi++;
 
-                // Mesafe Hesaplaması Gösterimi
                 let mesafeMetni = h.mesafe !== Infinity 
                     ? (h.mesafe < 1000 ? `📏 ${Math.round(h.mesafe)} m` : `📏 ${(h.mesafe / 1000).toFixed(2)} km`) 
                     : "📏 Konum bekleniyor...";
 
-                // Stil Belirleme
                 let solSeritRengi = "durum-calisiyor";
                 let durumBadge = "bg-success";
                 if (h.calismaDurumu === "Su Basıncı Düşük") { solSeritRengi = "durum-dusuk"; durumBadge = "bg-warning text-dark"; }
                 if (h.calismaDurumu === "Su Yok") { solSeritRengi = "durum-yok"; durumBadge = "bg-danger"; }
                 if (h.calismaDurumu === "Fiziksel Hasarlı") { solSeritRengi = "durum-hasarli"; durumBadge = "bg-secondary"; }
 
-                // Liste İçeriğine Ekle
                 icerik.innerHTML += `
                 <div class="h-card ${solSeritRengi}">
                     <div class="d-flex justify-content-between align-items-start">
@@ -296,7 +297,6 @@
                     </div>
                 </div>`;
                 
-                // Harita Pinini Çiz
                 let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
                 if (h.calismaDurumu !== "Çalışıyor") icon = 'islands#redAttentionIcon'; 
 
@@ -309,7 +309,6 @@
                 placemark.properties.set('id', 'hidrant');
                 myMap.geoObjects.add(placemark);
 
-                // Blink Animasyonu (Arızalılar için)
                 if (h.calismaDurumu !== "Çalışıyor") {
                     setTimeout(() => {
                         const overlay = placemark.getOverlay();
@@ -324,28 +323,28 @@
             document.getElementById('liste-baslik').innerText = `📍 LİSTELENEN HİDRANT SAYISI: ${gosterilenSayi}`;
         }
 
-        // Tam Ekran Harita Fonksiyonu
         let isFullScreen = false;
         function toggleFullScreenMap() {
             const mapEl = document.getElementById('map');
             const icon = document.getElementById('fullscreen-icon');
+            const btn = document.getElementById('btn-fullscreen');
             
             if(!isFullScreen) {
                 mapEl.classList.add('map-fullscreen');
                 icon.classList.remove('fa-expand');
                 icon.classList.add('fa-compress');
+                btn.classList.add('btn-fullscreen-active'); // Yeni stil sınıfını ekle
                 isFullScreen = true;
             } else {
                 mapEl.classList.remove('map-fullscreen');
                 icon.classList.remove('fa-compress');
                 icon.classList.add('fa-expand');
+                btn.classList.remove('btn-fullscreen-active'); // Yeni stil sınıfını çıkar
                 isFullScreen = false;
             }
-            // Harita boyutları değiştiğinde yandex haritayı yeniden boyutlandır
             setTimeout(() => { myMap.container.fitToViewport(); }, 350);
         }
 
-        // Modal ve Güncelleme İşlemleri
         function modalAc(id) {
             document.getElementById('modal-hidrant-id').value = id;
             bootstrapModal.show();
@@ -354,9 +353,6 @@
         async function durumGuncelle(yeniDurum) {
             const id = document.getElementById('modal-hidrant-id').value;
             if(!id) return;
-
-            // Yükleme ekranını ufak bir güncelleme için tekrar göstermek isterseniz:
-            // document.getElementById('loadingOverlay').style.display = 'flex'; 
             
             await db.collection("hidrantlar").doc(id).update({ calismaDurumu: yeniDurum });
             bootstrapModal.hide();
