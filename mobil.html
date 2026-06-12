@@ -9,49 +9,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Seydişehir İtfaiye - Mobil Takip</title>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <script src="https://api-maps.yandex.ru/2.1/?lang=tr_TR" type="text/javascript"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
     <style>
         body { background: #f1f5f9; margin: 0; padding: 0; }
-        #map { height: 320px; width: 100%; border-bottom: 4px solid #b91c1c; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-        .h-card { background: white; border-radius: 15px; padding: 15px; margin: 10px; border-left: 6px solid; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
         
-        /* Dinamik Sol Şerit Renkleri */
+        /* Harita ve Tam Ekran Stilleri */
+        #map-container { position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border-bottom: 4px solid #b91c1c; }
+        #map { height: 320px; width: 100%; transition: height 0.3s ease-in-out; }
+        .map-fullscreen { height: 100vh !important; border-bottom: none !important; }
+        
+        /* Tam Ekran Butonu */
+        #btn-fullscreen { position: absolute; bottom: 15px; right: 15px; z-index: 1001; border-radius: 50%; width: 45px; height: 45px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+
+        /* Yükleme Ekranı Stili */
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+        /* Kart Stilleri */
+        .h-card { background: white; border-radius: 15px; padding: 15px; margin: 10px 0; border-left: 6px solid; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
         .durum-calisiyor { border-left-color: #198754; }
         .durum-dusuk { border-left-color: #ffc107; }
         .durum-yok { border-left-color: #dc3545; }
         .durum-hasarli { border-left-color: #6c757d; }
 
-        /* Mobil Ekran İçin İri ve Basılması Kolay Durum Bildir Butonu */
         .btn-durum-bildir {
-            background: #1e293b !important;
-            color: #ffffff !important;
-            font-size: 12px !important;
-            font-weight: 800 !important;
-            letter-spacing: 0.5px;
-            padding: 12px 10px !important;
-            border-radius: 8px !important;
-            border: none !important;
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12) !important;
+            background: #1e293b !important; color: #ffffff !important; font-size: 12px !important; font-weight: 800 !important;
+            letter-spacing: 0.5px; padding: 12px 10px !important; border-radius: 8px !important; border: none !important; box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12) !important;
         }
 
-        /* Haritada Sorunlu Hidrantların Canlı Yanıp Sönme (Blink) Animasyonu */
+        /* Navigasyon Butonları İçi İkon Hizalaması */
+        .nav-btn { font-size: 10px; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; }
+        .nav-btn i { font-size: 16px; margin-bottom: 3px; }
+
         @keyframes yandis_son {
             0% { opacity: 1.0; transform: scale(1); }
             50% { opacity: 0.3; transform: scale(1.2); }
             100% { opacity: 1.0; transform: scale(1); }
         }
-        .ariza-blink {
-            animation: yandis_son 1.2s infinite ease-in-out;
-        }
+        .ariza-blink { animation: yandis_son 1.2s infinite ease-in-out; }
+        
+        /* Filtre Butonları Aktif Durumu */
+        .filter-btn.active { background-color: #b91c1c; color: white; border-color: #b91c1c; }
     </style>
 </head>
 <body>
-    <div id="map"></div>
+
+    <div id="loadingOverlay">
+        <div class="spinner-border text-danger" role="status" style="width: 3.5rem; height: 3.5rem;"></div>
+        <h5 class="mt-3 text-dark fw-bold">Sistem Yükleniyor...</h5>
+        <p class="text-muted small">Harita ve güncel durumlar alınıyor</p>
+    </div>
+
+    <div id="map-container">
+        <div id="map"></div>
+        <button id="btn-fullscreen" class="btn btn-dark" onclick="toggleFullScreenMap()">
+            <i class="fa-solid fa-expand" id="fullscreen-icon"></i>
+        </button>
+    </div>
+
     <div class="container pb-5">
-        <h5 class="mt-3 text-center text-danger fw-bold" style="font-size: 1.1rem;">📍 HİDRANTLAR CANLI KONUM EN YAKINDAN UZAĞA</h5>
+        
+        <div class="row g-2 mt-3 mb-3">
+            <div class="col-12">
+                <div class="input-group shadow-sm">
+                    <span class="input-group-text bg-white border-end-0 text-danger"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="text" id="aramaInput" class="form-control border-start-0" placeholder="Hidrant adı (mahalle) ara..." onkeyup="filtreGuncelle()">
+                </div>
+            </div>
+            <div class="col-12 d-flex gap-2" style="overflow-x: auto; white-space: nowrap; padding-bottom: 5px;">
+                <button class="btn btn-outline-danger filter-btn active flex-fill fw-bold" id="filtre-tumu" onclick="durumFiltrele('tümü')">Tümü</button>
+                <button class="btn btn-outline-danger filter-btn flex-fill fw-bold" id="filtre-calisiyor" onclick="durumFiltrele('Çalışıyor')">Çalışanlar</button>
+                <button class="btn btn-outline-danger filter-btn flex-fill fw-bold" id="filtre-arizali" onclick="durumFiltrele('arizali')">Arızalılar</button>
+            </div>
+        </div>
+
+        <h6 class="text-center text-muted fw-bold mb-3" style="font-size: 0.9rem;" id="liste-baslik">📍 HİDRANT LİSTESİ (YAKINDAN UZAĞA)</h6>
         <div id="liste-icerik"></div>
     </div>
 
@@ -59,17 +97,17 @@
         <div class="modal-dialog modal-dialog-centered modal-sm px-3">
             <div class="modal-content" style="border-radius: 15px;">
                 <div class="modal-header bg-danger text-white">
-                    <h6 class="modal-title fw-bold">⚠️ Sahadan Durum Bildir</h6>
+                    <h6 class="modal-title fw-bold"><i class="fa-solid fa-triangle-exclamation"></i> Sahadan Durum Bildir</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="modal-hidrant-id">
                     <p class="small text-muted mb-3 text-center">Hidrantın sahadaki güncel performansını seçiniz:</p>
                     <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-outline-success text-start fw-bold" onclick="durumGuncelle('Çalışıyor')">🟢 Çalışıyor</button>
-                        <button type="button" class="btn btn-outline-warning text-start fw-bold text-dark" onclick="durumGuncelle('Su Basıncı Düşük')">🟡 Su Basıncı Düşük</button>
-                        <button type="button" class="btn btn-outline-danger text-start fw-bold" onclick="durumGuncelle('Su Yok')">🔴 Su Yok</button>
-                        <button type="button" class="btn btn-outline-secondary text-start fw-bold" onclick="durumGuncelle('Fiziksel Hasarlı')">🟠 Fiziksel Hasarlı</button>
+                        <button type="button" class="btn btn-outline-success text-start fw-bold" onclick="durumGuncelle('Çalışıyor')"><i class="fa-solid fa-circle-check"></i> Çalışıyor</button>
+                        <button type="button" class="btn btn-outline-warning text-start fw-bold text-dark" onclick="durumGuncelle('Su Basıncı Düşük')"><i class="fa-solid fa-gauge-simple"></i> Su Basıncı Düşük</button>
+                        <button type="button" class="btn btn-outline-danger text-start fw-bold" onclick="durumGuncelle('Su Yok')"><i class="fa-solid fa-droplet-slash"></i> Su Yok</button>
+                        <button type="button" class="btn btn-outline-secondary text-start fw-bold" onclick="durumGuncelle('Fiziksel Hasarlı')"><i class="fa-solid fa-car-burst"></i> Fiziksel Hasarlı</button>
                     </div>
                 </div>
             </div>
@@ -79,6 +117,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        // Firebase Konfigürasyonu
         const firebaseConfig = {
             apiKey: "AIzaSyBW7ZKG_Tl_RQNBYqObQLNWaikklaZver4",
             authDomain: "seydisehir-hidrant-takip.firebaseapp.com",
@@ -90,10 +129,14 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        var myMap;
-        var userCoords = null; 
-        var bootstrapModal;
+        let myMap;
+        let userCoords = null; 
+        let bootstrapModal;
+        let tumHidrantlar = []; // Tüm veriyi hafızada tutacağız
+        let aktifFiltreDurum = 'tümü'; // 'tümü', 'Çalışıyor', 'arizali'
+        let ilkYukleme = true;
 
+        // Yandex Haritalar Yüklemesi
         ymaps.ready(() => {
             bootstrapModal = new bootstrap.Modal(document.getElementById('durumModal'));
 
@@ -103,6 +146,7 @@
                 controls: ['zoomControl', 'geolocationControl', 'routeButtonControl'] 
             });
 
+            // Konum Servisini Başlat
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition(pos => {
                     userCoords = [pos.coords.latitude, pos.coords.longitude];
@@ -111,9 +155,7 @@
                         if (obj.properties.get('id') === 'user') myMap.geoObjects.remove(obj);
                     });
 
-                    const userMarker = new ymaps.Placemark(userCoords, {}, {
-                        preset: 'islands#geolocationIcon'
-                    });
+                    const userMarker = new ymaps.Placemark(userCoords, {}, { preset: 'islands#geolocationIcon' });
                     userMarker.properties.set('id', 'user');
                     myMap.geoObjects.add(userMarker);
 
@@ -127,30 +169,11 @@
             }
         });
 
-        function modalAc(id) {
-            document.getElementById('modal-hidrant-id').value = id;
-            bootstrapModal.show();
-        }
-
-        async function durumGuncelle(yeniDurum) {
-            const id = document.getElementById('modal-hidrant-id').value;
-            if(!id) return;
-
-            await db.collection("hidrantlar").doc(id).update({ calismaDurumu: yeniDurum });
-            bootstrapModal.hide();
-        }
-
+        // Veritabanı Dinleyici
         function verileriGetir() {
             db.collection("hidrantlar").onSnapshot(snapshot => {
-                const icerik = document.getElementById('liste-icerik');
-                icerik.innerHTML = "";
+                tumHidrantlar = [];
                 
-                myMap.geoObjects.each(function (obj) {
-                    if (obj.properties.get('id') === 'hidrant') myMap.geoObjects.remove(obj);
-                });
-
-                let hidrantlarDizisi = [];
-
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     let mesafeMetre = Infinity;
@@ -160,7 +183,7 @@
                         mesafeMetre = ymaps.coordSystem.geo.getDistance(userCoords, hidrantCoords);
                     }
 
-                    hidrantlarDizisi.push({
+                    tumHidrantlar.push({
                         id: doc.id,
                         ad: data.ad,
                         tip: data.tip,
@@ -173,87 +196,170 @@
                 });
 
                 if (userCoords) {
-                    hidrantlarDizisi.sort((a, b) => a.mesafe - b.mesafe);
+                    tumHidrantlar.sort((a, b) => a.mesafe - b.mesafe);
                 }
 
-                hidrantlarDizisi.forEach(h => {
-                    let mesafeMetni = "";
-                    if (h.mesafe !== Infinity) {
-                        if (h.mesafe < 1000) {
-                            mesafeMetni = `📏 ${Math.round(h.mesafe)} m`;
-                        } else {
-                            mesafeMetni = `📏 ${(h.mesafe / 1000).toFixed(2)} km`;
-                        }
-                    } else {
-                        mesafeMetni = "📏 Konum bekleniyor...";
-                    }
+                // Veriler geldiğinde yükleme ekranını kaldır (sadece ilk açılışta)
+                if (ilkYukleme) {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    ilkYukleme = false;
+                }
 
-                    // Dinamik tasarım renk grupları
-                    let solSeritRengi = "durum-calisiyor";
-                    let durumBadge = "bg-success";
-                    if (h.calismaDurumu === "Su Basıncı Düşük") { solSeritRengi = "durum-dusuk"; durumBadge = "bg-warning text-dark"; }
-                    if (h.calismaDurumu === "Su Yok") { solSeritRengi = "durum-yok"; durumBadge = "bg-danger"; }
-                    if (h.calismaDurumu === "Fiziksel Hasarlı") { solSeritRengi = "durum-hasarli"; durumBadge = "bg-secondary"; }
-
-                    icerik.innerHTML += `
-                    <div class="h-card ${solSeritRengi}">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <strong style="font-size:1rem; max-width: 65%;">📍 ${h.ad.toUpperCase()}</strong>
-                            <span class="badge ${durumBadge}" style="font-size: 0.7rem; white-space: nowrap;">${h.calismaDurumu.toUpperCase()}</span>
-                        </div>
-                        <div class="mt-1 d-flex justify-content-between text-secondary" style="font-size: 0.85rem;">
-                            <span>${h.tip} / <b>${h.baglanti}</b></span>
-                            <span class="text-danger fw-bold">${mesafeMetni}</span>
-                        </div>
-                        
-                        <div class="row g-1 mt-2">
-                            <div class="col-4">
-                                <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn btn-warning btn-sm w-100 fw-bold pt-2 pb-2" style="font-size:10px; color:black;">YANDEX<br><span style="font-size:7px; font-weight:normal;">(Navi)</span></a>
-                            </div>
-                            <div class="col-4">
-                                <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn btn-primary btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px; background:#007aff;">iOS<br><span style="font-size:7px; font-weight:normal;">(APPLE)</span></a>
-                            </div>
-                            <div class="col-4">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="btn btn-success btn-sm w-100 fw-bold pt-2 pb-2 text-white" style="font-size:10px;">GOOGLE<br><span style="font-size:7px; font-weight:normal;">MAPS</span></a>
-                            </div>
-                        </div>
-
-                        <div class="row mt-2">
-                            <div class="col-12">
-                                <button class="btn btn-durum-bildir w-100" onclick="modalAc('${h.id}')">⚠️ SAHADAN DURUM BİLDİR / DEĞİŞTİR</button>
-                            </div>
-                        </div>
-                    </div>`;
-                    
-                    // Harita Pin Atama Mantığı
-                    let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
-                    
-                    if (h.calismaDurumu !== "Çalışıyor") {
-                        icon = 'islands#redAttentionIcon'; // Sorunlu durumlarda haritada ünlemli kırmızı alarma geçer
-                    }
-
-                    let balonMetni = `<b>📍 ${h.ad}</b><br>${h.tip}<br>Giriş: ${h.baglanti}<br>🚨 <b>DURUM: ${h.calismaDurumu}</b>`;
-                    
-                    let placemark = new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {
-                        balloonContent: balonMetni
-                    }, {
-                        preset: icon
-                    });
-                    placemark.properties.set('id', 'hidrant');
-                    myMap.geoObjects.add(placemark);
-
-                    // Arıza durumunda canlı yanıp sönme (Blink) tetiği
-                    if (h.calismaDurumu !== "Çalışıyor") {
-                        setTimeout(() => {
-                            const overlay = placemark.getOverlay();
-                            if (overlay) {
-                                const element = overlay.getLayoutSync().getElement();
-                                if (element) element.classList.add('ariza-blink');
-                            }
-                        }, 500);
-                    }
-                });
+                filtreGuncelle(); // Ekrana çiz
             });
+        }
+
+        // Filtreleme Butonu Yönetimi
+        function durumFiltrele(durum) {
+            aktifFiltreDurum = durum;
+            
+            // Buton aktiflik sınıflarını ayarla
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            if(durum === 'tümü') document.getElementById('filtre-tumu').classList.add('active');
+            if(durum === 'Çalışıyor') document.getElementById('filtre-calisiyor').classList.add('active');
+            if(durum === 'arizali') document.getElementById('filtre-arizali').classList.add('active');
+
+            filtreGuncelle();
+        }
+
+        // Filtre ve Arama Sonuçlarını Harita ve Listeye Yansıtma
+        function filtreGuncelle() {
+            const aramaMetni = document.getElementById('aramaInput').value.toLowerCase();
+            const icerik = document.getElementById('liste-icerik');
+            icerik.innerHTML = "";
+            
+            // Haritadaki eski hidrantları temizle (kullanıcı konumu hariç)
+            myMap.geoObjects.each(function (obj) {
+                if (obj.properties.get('id') === 'hidrant') myMap.geoObjects.remove(obj);
+            });
+
+            let gosterilenSayi = 0;
+
+            tumHidrantlar.forEach(h => {
+                // Arama Kontrolü
+                if (aramaMetni && !h.ad.toLowerCase().includes(aramaMetni)) return;
+
+                // Durum Kontrolü
+                if (aktifFiltreDurum === 'Çalışıyor' && h.calismaDurumu !== 'Çalışıyor') return;
+                if (aktifFiltreDurum === 'arizali' && h.calismaDurumu === 'Çalışıyor') return;
+
+                gosterilenSayi++;
+
+                // Mesafe Hesaplaması Gösterimi
+                let mesafeMetni = h.mesafe !== Infinity 
+                    ? (h.mesafe < 1000 ? `📏 ${Math.round(h.mesafe)} m` : `📏 ${(h.mesafe / 1000).toFixed(2)} km`) 
+                    : "📏 Konum bekleniyor...";
+
+                // Stil Belirleme
+                let solSeritRengi = "durum-calisiyor";
+                let durumBadge = "bg-success";
+                if (h.calismaDurumu === "Su Basıncı Düşük") { solSeritRengi = "durum-dusuk"; durumBadge = "bg-warning text-dark"; }
+                if (h.calismaDurumu === "Su Yok") { solSeritRengi = "durum-yok"; durumBadge = "bg-danger"; }
+                if (h.calismaDurumu === "Fiziksel Hasarlı") { solSeritRengi = "durum-hasarli"; durumBadge = "bg-secondary"; }
+
+                // Liste İçeriğine Ekle
+                icerik.innerHTML += `
+                <div class="h-card ${solSeritRengi}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <strong style="font-size:1rem; max-width: 65%;">📍 ${h.ad.toUpperCase()}</strong>
+                        <span class="badge ${durumBadge}" style="font-size: 0.7rem; white-space: nowrap;">${h.calismaDurumu.toUpperCase()}</span>
+                    </div>
+                    <div class="mt-1 d-flex justify-content-between text-secondary" style="font-size: 0.85rem;">
+                        <span>${h.tip} / <b>${h.baglanti}</b></span>
+                        <span class="text-danger fw-bold">${mesafeMetni}</span>
+                    </div>
+                    
+                    <div class="row g-1 mt-3">
+                        <div class="col-4">
+                            <a href="yandexnavi://build_route_on_map?lat_to=${h.lat}&lon_to=${h.lng}" class="btn btn-warning w-100 text-dark nav-btn">
+                                <i class="fa-brands fa-yandex"></i> YANDEX
+                            </a>
+                        </div>
+                        <div class="col-4">
+                            <a href="https://maps.apple.com/?daddr=${h.lat},${h.lng}" class="btn w-100 text-white nav-btn" style="background:#007aff;">
+                                <i class="fa-brands fa-apple"></i> APPLE
+                            </a>
+                        </div>
+                        <div class="col-4">
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}" target="_blank" class="btn btn-success w-100 text-white nav-btn">
+                                <i class="fa-brands fa-google"></i> GOOGLE
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <button class="btn btn-durum-bildir w-100 mt-1" onclick="modalAc('${h.id}')">
+                                <i class="fa-solid fa-pen-to-square"></i> SAHADAN DURUM BİLDİR
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+                
+                // Harita Pinini Çiz
+                let icon = h.tip === 'Yer Üstü' ? 'islands#redWaterDropIcon' : 'islands#blueWaterDropIcon';
+                if (h.calismaDurumu !== "Çalışıyor") icon = 'islands#redAttentionIcon'; 
+
+                let balonMetni = `<b>📍 ${h.ad}</b><br>${h.tip}<br>Giriş: ${h.baglanti}<br>🚨 <b>DURUM: ${h.calismaDurumu}</b>`;
+                
+                let placemark = new ymaps.Placemark([parseFloat(h.lat), parseFloat(h.lng)], {
+                    balloonContent: balonMetni
+                }, { preset: icon });
+                
+                placemark.properties.set('id', 'hidrant');
+                myMap.geoObjects.add(placemark);
+
+                // Blink Animasyonu (Arızalılar için)
+                if (h.calismaDurumu !== "Çalışıyor") {
+                    setTimeout(() => {
+                        const overlay = placemark.getOverlay();
+                        if (overlay) {
+                            const element = overlay.getLayoutSync().getElement();
+                            if (element) element.classList.add('ariza-blink');
+                        }
+                    }, 500);
+                }
+            });
+
+            document.getElementById('liste-baslik').innerText = `📍 LİSTELENEN HİDRANT SAYISI: ${gosterilenSayi}`;
+        }
+
+        // Tam Ekran Harita Fonksiyonu
+        let isFullScreen = false;
+        function toggleFullScreenMap() {
+            const mapEl = document.getElementById('map');
+            const icon = document.getElementById('fullscreen-icon');
+            
+            if(!isFullScreen) {
+                mapEl.classList.add('map-fullscreen');
+                icon.classList.remove('fa-expand');
+                icon.classList.add('fa-compress');
+                isFullScreen = true;
+            } else {
+                mapEl.classList.remove('map-fullscreen');
+                icon.classList.remove('fa-compress');
+                icon.classList.add('fa-expand');
+                isFullScreen = false;
+            }
+            // Harita boyutları değiştiğinde yandex haritayı yeniden boyutlandır
+            setTimeout(() => { myMap.container.fitToViewport(); }, 350);
+        }
+
+        // Modal ve Güncelleme İşlemleri
+        function modalAc(id) {
+            document.getElementById('modal-hidrant-id').value = id;
+            bootstrapModal.show();
+        }
+
+        async function durumGuncelle(yeniDurum) {
+            const id = document.getElementById('modal-hidrant-id').value;
+            if(!id) return;
+
+            // Yükleme ekranını ufak bir güncelleme için tekrar göstermek isterseniz:
+            // document.getElementById('loadingOverlay').style.display = 'flex'; 
+            
+            await db.collection("hidrantlar").doc(id).update({ calismaDurumu: yeniDurum });
+            bootstrapModal.hide();
         }
     </script>
 </body>
