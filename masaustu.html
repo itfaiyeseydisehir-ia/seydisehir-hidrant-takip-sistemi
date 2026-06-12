@@ -22,7 +22,9 @@
         
         /* Layout */
         .navbar-custom { height: 60px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000; position: relative; }
-        .main-container { display: flex; height: calc(100vh - 60px); width: 100%; }
+        
+        /* HER ZAMAN YAN YANA (Ekran küçülse bile alt alta geçmez) */
+        .main-container { display: flex; height: calc(100vh - 60px); width: 100%; min-width: 900px; flex-direction: row; }
         
         /* Sol Panel (Kontrol) */
         .left-panel { width: 40%; height: 100%; overflow-y: auto; padding: 20px; background: #f8fafc; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; }
@@ -56,26 +58,19 @@
         /* Blink Animasyonu */
         @keyframes yandis_son { 0% { opacity: 1.0; transform: scale(1); } 50% { opacity: 0.3; transform: scale(1.2); } 100% { opacity: 1.0; transform: scale(1); } }
         .ariza-blink { animation: yandis_son 1.2s infinite ease-in-out; }
-
-        /* Responsive Düzeltmeler */
-        @media (max-width: 992px) {
-            .main-container { flex-direction: column; overflow: auto; }
-            .left-panel, .right-panel { width: 100%; height: auto; overflow: visible; }
-            .right-panel { height: 60vh; }
-        }
     </style>
 </head>
 <body>
 
     <div id="loadingOverlay">
         <div class="spinner-border text-danger" role="status" style="width: 4rem; height: 4rem;"></div>
-        <h4 class="mt-4 text-dark fw-bold">Komuta Merkezi Yükleniyor</h4>
-        <p class="text-muted">Canlı veriler ve harita senkronize ediliyor...</p>
+        <h4 class="mt-4 text-dark fw-bold">Masaüstü Düzenleme Merkezi Yükleniyor</h4>
+        <p class="text-muted">Canlı Veriler ve Harita Yükleniyor</p>
     </div>
 
     <nav class="navbar navbar-dark bg-danger navbar-custom">
         <div class="container-fluid px-4 d-flex justify-content-between align-items-center">
-            <span class="navbar-brand fw-bold m-0"><i class="fa-solid fa-fire-extinguisher me-2"></i> SEYDİŞEHİR İTFAİYE KOMUTA MERKEZİ</span>
+            <span class="navbar-brand fw-bold m-0"><i class="fa-solid fa-fire-extinguisher me-2"></i> Seydişehir İtfaiye Hidrant Takip Sistemi</span>
             <span class="text-white small"><i class="fa-solid fa-user-shield me-1"></i> Yönetici Modu Aktif</span>
         </div>
     </nav>
@@ -253,7 +248,6 @@
 
                 if (clickMarker) myMap.geoObjects.remove(clickMarker);
 
-                // Daha profesyonel hedef pini (Crosshair)
                 clickMarker = new ymaps.Placemark(coords, {
                     balloonContent: 'Hedeflenen Yeni Konum'
                 }, {
@@ -289,7 +283,6 @@
 
                 if (userCoords) dunyaHidrantVerisi.sort((a, b) => a.mesafe - b.mesafe);
 
-                // İstatistikleri Güncelle
                 document.getElementById('stat-toplam').innerText = toplam;
                 document.getElementById('stat-calisan').innerText = calisan;
                 document.getElementById('stat-arizali').innerText = arizali;
@@ -447,7 +440,6 @@
             if (clickMarker) { myMap.geoObjects.remove(clickMarker); clickMarker = null; }
         }
 
-        /* --- SİLME İŞLEMİ --- */
         function sil(id) {
             document.getElementById('silinecekId').value = id;
             document.getElementById('silmeSifresi').value = '';
