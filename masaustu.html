@@ -135,15 +135,15 @@
                 </div>
                 
                 <div class="row g-2 mb-3 align-items-center">
-                    <div class="col-5"><input type="text" id="h-lat" class="form-control form-control-sm text-center bg-light" placeholder="Enlem" readonly></div>
-                    <div class="col-5"><input type="text" id="h-lng" class="form-control form-control-sm text-center bg-light" placeholder="Boylam" readonly></div>
+                    <div class="col-5"><input type="text" id="h-lat" class="form-control form-control-sm text-center" placeholder="Enlem (Örn: 37.4182)"></div>
+                    <div class="col-5"><input type="text" id="h-lng" class="form-control form-control-sm text-center" placeholder="Boylam (Örn: 31.8465)"></div>
                     <div class="col-2">
                         <button class="btn btn-dark btn-sm w-100 py-1" onclick="konumumuKullan()" title="Şu anki GPS Konumumu Kullan" style="height: 100%;">
                             <i class="fa-solid fa-crosshairs"></i>
                         </button>
                     </div>
                 </div>
-                <div class="text-muted small mb-2 mt-0 text-center" style="font-size: 0.75rem;">Haritadan seçin veya siyah hedef butonuna basarak GPS konumunuzu alın.</div>
+                <div class="text-muted small mb-2 mt-0 text-center" style="font-size: 0.75rem;">Haritadan seçebilir, siyah butondan GPS alabilir veya kutulara elle koordinat yazabilirsiniz.</div>
 
                 <div id="buton-alani">
                     <button class="btn btn-danger btn-sm w-100 fw-bold py-2" onclick="kaydet()"><i class="fa-solid fa-cloud-arrow-up"></i> SİSTEME KAYDET</button>
@@ -405,7 +405,7 @@
             const baglanti = document.getElementById('h-baglanti').value;
             const lat = document.getElementById('h-lat').value;
             const lng = document.getElementById('h-lng').value;
-            if(!ad || !lat) return alert("Adres ve Harita Konumu zorunludur!");
+            if(!ad || !lat || !lng) return alert("Adres, Enlem ve Boylam alanlarının tümü zorunludur amirim!");
 
             await db.collection("hidrantlar").add({ ad, tip, baglanti, lat, lng, calismaDurumu: "Çalışıyor", tarih: Date.now() });
             formuSifirla();
@@ -428,7 +428,7 @@
             
             document.getElementById('buton-alani').innerHTML = `
                 <div class="row g-2">
-                    <div class="col-8"><button class="btn btn-primary btn-sm w-100 fw-bold py-2" onclick="guncellele()"><i class="fa-solid fa-save"></i> DEĞİŞİKLİKLERİ KAYDET</button></div>
+                    <div class="col-8"><button class="btn btn-primary btn-sm w-100 fw-bold py-2" onclick="guncellele()"><i class="fa-solid fa-save"></i> DEĞİŞİKLİKLERİ KAYRET</button></div>
                     <div class="col-4"><button class="btn btn-secondary btn-sm w-100 fw-bold py-2" onclick="formuSifirla()">İPTAL</button></div>
                 </div>
             `;
@@ -441,7 +441,7 @@
 
         async function guncellele() {
             const ad = document.getElementById('h-ad').value, tip = document.getElementById('h-tip').value, baglanti = document.getElementById('h-baglanti').value, lat = document.getElementById('h-lat').value, lng = document.getElementById('h-lng').value;
-            if(!ad || !lat) return alert("Boş alan bırakılamaz!");
+            if(!ad || !lat || !lng) return alert("Boş alan bırakılamaz!");
             await db.collection("hidrantlar").doc(editId).update({ ad, tip, baglanti, lat, lng });
             formuSifirla();
             alert("Güncelleme başarılı!");
